@@ -83,6 +83,7 @@ signal sd_lba:  std_logic_vector(31 downto 0);
 signal sd_rd:   std_logic;
 signal sd_wr:   std_logic;
 signal sd_ack:  std_logic;
+signal sd_ack_conf:  std_logic;
 signal sd_conf: std_logic;
 signal sd_sdhc: std_logic;
 signal sd_allow_sdhc: std_logic;
@@ -94,6 +95,7 @@ signal sd_data_in: std_logic_vector(7 downto 0);
 signal sd_data_in_strobe:  std_logic;
 signal sd_data_out: std_logic_vector(7 downto 0);
 signal sd_data_out_strobe:  std_logic;
+signal sd_buff_addr: std_logic_vector(8 downto 0);
 
 -- sd card emulation
 signal sd_cs:	std_logic;
@@ -167,39 +169,42 @@ end function;
 component user_io 
 	generic ( STRLEN : integer := 0 );
    port (
-			  SPI_CLK, SPI_SS_IO, SPI_MOSI :in std_logic;
-           SPI_MISO : out std_logic;
-           conf_str : in std_logic_vector(8*STRLEN-1 downto 0);
-           joystick_0 : out std_logic_vector(7 downto 0);
-           joystick_1 : out std_logic_vector(7 downto 0);
-           joystick_2 : out std_logic_vector(7 downto 0);
-           joystick_3 : out std_logic_vector(7 downto 0);
-           joystick_4 : out std_logic_vector(7 downto 0);
-           joystick_analog_0 : out std_logic_vector(15 downto 0);
-           joystick_analog_1 : out std_logic_vector(15 downto 0);
-           status: out std_logic_vector(7 downto 0);
-           switches : out std_logic_vector(1 downto 0);
-           buttons : out std_logic_vector(1 downto 0);
-			  sd_lba : in std_logic_vector(31 downto 0);
-			  sd_rd : in std_logic;
-			  sd_wr : in std_logic;
-			  sd_ack : out std_logic;
-			  sd_conf : in std_logic;
-			  sd_sdhc : in std_logic;
-			  sd_dout : out std_logic_vector(7 downto 0);
-			  sd_dout_strobe : out std_logic;
-			  sd_din : in std_logic_vector(7 downto 0);
-			  sd_din_strobe : out std_logic;
-           ps2_clk : in std_logic;
-           ps2_kbd_clk : out std_logic;
-           ps2_kbd_data : out std_logic;
-           ps2_mouse_clk : out std_logic;
-           ps2_mouse_data : out std_logic;
-			  serial_data : in std_logic_vector(7 downto 0);
-           serial_strobe : in std_logic
+        clk_sys : in std_logic;
+        clk_sd  : in std_logic;
+        SPI_CLK, SPI_SS_IO, SPI_MOSI :in std_logic;
+        SPI_MISO : out std_logic;
+        conf_str : in std_logic_vector(8*STRLEN-1 downto 0);
+        joystick_0 : out std_logic_vector(7 downto 0);
+        joystick_1 : out std_logic_vector(7 downto 0);
+        joystick_2 : out std_logic_vector(7 downto 0);
+        joystick_3 : out std_logic_vector(7 downto 0);
+        joystick_4 : out std_logic_vector(7 downto 0);
+        joystick_analog_0 : out std_logic_vector(15 downto 0);
+        joystick_analog_1 : out std_logic_vector(15 downto 0);
+        status: out std_logic_vector(7 downto 0);
+        switches : out std_logic_vector(1 downto 0);
+        buttons : out std_logic_vector(1 downto 0);
+        sd_lba : in std_logic_vector(31 downto 0);
+        sd_rd : in std_logic;
+        sd_wr : in std_logic;
+        sd_ack : out std_logic;
+        sd_ack_conf : out std_logic;
+        sd_conf : in std_logic;
+        sd_sdhc : in std_logic;
+        sd_dout : out std_logic_vector(7 downto 0);
+        sd_dout_strobe : out std_logic;
+        sd_din : in std_logic_vector(7 downto 0);
+        sd_din_strobe : out std_logic;
+        sd_buff_addr : out std_logic_vector(8 downto 0);
+        ps2_kbd_clk : out std_logic;
+        ps2_kbd_data : out std_logic;
+        ps2_mouse_clk : out std_logic;
+        ps2_mouse_data : out std_logic;
+        serial_data : in std_logic_vector(7 downto 0);
+        serial_strobe : in std_logic
       );
   end component user_io;
-  
+
 component mist_console
 	generic ( CLKFREQ : integer := 100 );
    port (  clk 	:	in std_logic;
@@ -211,23 +216,25 @@ component mist_console
   end component mist_console;
 
 component sd_card
-   port (  io_lba 	: out std_logic_vector(31 downto 0);
-			  io_rd  	: out std_logic;
-			  io_wr  	: out std_logic;
-			  io_ack 	: in std_logic;
-			  io_sdhc 	: out std_logic;
-			  io_conf 	: out std_logic;
-			  io_din 	: in std_logic_vector(7 downto 0);
-			  io_din_strobe : in std_logic;
-			  io_dout 	: out std_logic_vector(7 downto 0);
-			  io_dout_strobe : in std_logic;
+    port (
+        clk_sys : in std_logic;
+        sd_lba 	: out std_logic_vector(31 downto 0);
+        sd_rd  	  : out std_logic;
+        sd_wr  	  : out std_logic;
+        sd_ack 	  : in std_logic;
+        sd_ack_conf : in std_logic;
+        sd_sdhc 	: out std_logic;
+        sd_conf 	: out std_logic;
+        sd_buff_din 	: out std_logic_vector(7 downto 0);
+        sd_buff_dout	: in std_logic_vector(7 downto 0);
+        sd_buff_wr : in std_logic;
+        sd_buff_addr : in std_logic_vector(8 downto 0);
+        allow_sdhc : in std_logic;
 
-			  allow_sdhc : in std_logic;
-			  
-           sd_cs 		:	in std_logic;
-           sd_sck 	:	in std_logic;
-           sd_sdi 	:	in std_logic;
-           sd_sdo 	:	out std_logic
+        sd_cs 	:	in std_logic;
+        sd_sck 	:	in std_logic;
+        sd_sdi 	:	in std_logic;
+        sd_sdo 	:	out std_logic
   );
   end component sd_card;
 
@@ -336,26 +343,28 @@ mist_console_d: component mist_console
 sd_card_d: component sd_card
 	port map
 	(
+        clk_sys => clk42m,
  		-- connection to io controller
- 		io_lba => sd_lba,
- 		io_rd  => sd_rd,
-		io_wr  => sd_wr,
- 		io_ack => sd_ack,
-		io_conf => sd_conf,
-		io_sdhc => sd_sdhc,
- 		io_din => sd_data_in,
- 		io_din_strobe => sd_data_in_strobe,
-		io_dout => sd_data_out,
-		io_dout_strobe => sd_data_out_strobe,
- 
-		allow_sdhc  => '1',
-		
+        sd_lba => sd_lba,
+        sd_rd  => sd_rd,
+        sd_wr  => sd_wr,
+        sd_ack => sd_ack,
+        sd_ack_conf => sd_ack_conf,
+        sd_conf => sd_conf,
+        sd_sdhc => sd_sdhc,
+        sd_buff_din => sd_data_out,
+        sd_buff_dout => sd_data_in,
+        sd_buff_wr => sd_data_in_strobe,
+        sd_buff_addr => sd_buff_addr,
+
+        allow_sdhc  => '1',
+
  		-- connection to host
- 		sd_cs  => sd_cs,
- 		sd_sck => sd_sck,
-		sd_sdi => sd_sdi,
-		sd_sdo => sd_sdo		
-	);
+        sd_cs  => sd_cs,
+        sd_sck => sd_sck,
+        sd_sdi => sd_sdi,
+        sd_sdo => sd_sdo
+    );
 
 -- prevent joystick signals from being optimzed away
 LED <= '0' when ((joy_ana_0 /= joy_ana_1) AND (joy_0 /= joy_1)) else '1';
@@ -363,41 +372,44 @@ LED <= '0' when ((joy_ana_0 /= joy_ana_1) AND (joy_0 /= joy_1)) else '1';
 user_io_d : user_io
     generic map (STRLEN => 1)
     port map (
-      SPI_CLK => SPI_SCK,
-      SPI_SS_IO => CONF_DATA0,
-      SPI_MISO => SPI_DO,
-      SPI_MOSI => SPI_DI,
-      conf_str => "00000000",   -- no config string -> no osd
-      status => status,
-		
- 		-- connection to io controller
-		sd_lba  => sd_lba,
-		sd_rd   => sd_rd,
-		sd_wr   => sd_wr,
-		sd_ack  => sd_ack,
-		sd_sdhc => sd_sdhc,
-		sd_conf => sd_conf,
- 		sd_dout => sd_data_in,
- 		sd_dout_strobe => sd_data_in_strobe,
-		sd_din => sd_data_out,
-		sd_din_strobe => sd_data_out_strobe,
+        clk_sys => clk42m,
+        clk_sd  => clk42m,
+        SPI_CLK => SPI_SCK,
+        SPI_SS_IO => CONF_DATA0,
+        SPI_MISO => SPI_DO,
+        SPI_MOSI => SPI_DI,
+        conf_str => "00000000",   -- no config string -> no osd
+        status => status,
 
-      joystick_0 => joy_0,
-      joystick_1 => joy_1,
-      joystick_2 => joy_2,
-      joystick_3 => joy_3,
-      joystick_4 => joy_4,
-      joystick_analog_0 => joy_ana_0,
-      joystick_analog_1 => joy_ana_1,
+ 		-- connection to io controller
+        sd_lba  => sd_lba,
+        sd_rd   => sd_rd,
+        sd_wr   => sd_wr,
+        sd_ack  => sd_ack,
+        sd_ack_conf  => sd_ack_conf,
+        sd_sdhc => sd_sdhc,
+        sd_conf => sd_conf,
+        sd_dout => sd_data_in,
+        sd_dout_strobe => sd_data_in_strobe,
+        sd_din => sd_data_out,
+        sd_din_strobe => sd_data_out_strobe,
+        sd_buff_addr => sd_buff_addr,
+
+        joystick_0 => joy_0,
+        joystick_1 => joy_1,
+        joystick_2 => joy_2,
+        joystick_3 => joy_3,
+        joystick_4 => joy_4,
+        joystick_analog_0 => joy_ana_0,
+        joystick_analog_1 => joy_ana_1,
 --      switches => switches,
-       BUTTONS => buttons,
-		ps2_clk => ps2_clk,
-      ps2_kbd_clk => ps2_keyboard_clk_in,
-      ps2_kbd_data => ps2_keyboard_dat_in,
-      ps2_mouse_clk => ps2_mouse_clk_in,
-      ps2_mouse_data => ps2_mouse_dat_in,
- 		serial_data => par_out_data,
- 		serial_strobe => par_out_strobe
+        BUTTONS => buttons,
+        ps2_kbd_clk => ps2_keyboard_clk_in,
+        ps2_kbd_data => ps2_keyboard_dat_in,
+        ps2_mouse_clk => ps2_mouse_clk_in,
+        ps2_mouse_data => ps2_mouse_dat_in,
+        serial_data => par_out_data,
+        serial_strobe => par_out_strobe
  );
  
 -- swap, invert and remap joystick bits

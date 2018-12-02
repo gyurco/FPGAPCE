@@ -220,12 +220,6 @@ signal ROM_DO	: std_logic_vector(7 downto 0);
 signal SW : std_logic_vector(11 downto 0);
 signal KEY : std_logic_vector(3 downto 0);
 
-signal gp1emu : std_logic_vector(7 downto 0);
-signal gp2emu : std_logic_vector(7 downto 0);
-
-signal joya_merged : std_logic_vector(7 downto 0);
-signal joyb_merged : std_logic_vector(7 downto 0);
-
 signal gamepad_port : unsigned(2 downto 0);
 signal multitap : std_logic :='1';
 signal prev_sel : std_logic;
@@ -658,22 +652,18 @@ begin
 	end if;
 end process;
 
-joya_merged <= joya and gp1emu;
-joyb_merged <= joyb and gp2emu;
-
-
 
 -- I/O Port
 CPU_IO_DI(7 downto 4) <= "1011"; -- No CD-Rom unit, TGFX-16
 CPU_IO_DI(3 downto 0) <=
-	joya_merged(7) & joya_merged(6) & joya_merged(4) & joya_merged(5)
+	joya(7) & joya(6) & joya(4) & joya(5)
 		when CPU_IO_DO(1 downto 0) = "00" and gamepad_port = "000"
-	else joya_merged(2) & joya_merged(1) & joya_merged(3) & joya_merged(0)
+	else joya(2) & joya(1) & joya(3) & joya(0)
 		when CPU_IO_DO(1 downto 0) = "01" and gamepad_port = "000"
 		
-	else joyb_merged(7) & joyb_merged(6) & joyb_merged(4) & joyb_merged(5)
+	else joyb(7) & joyb(6) & joyb(4) & joyb(5)
 		when CPU_IO_DO(1 downto 0) = "00" and gamepad_port = "001"
-	else joyb_merged(2) & joyb_merged(1) & joyb_merged(3) & joyb_merged(0)
+	else joyb(2) & joyb(1) & joyb(3) & joyb(0)
 		when CPU_IO_DO(1 downto 0) = "01" and gamepad_port = "001"
 		
 	else joyc(7) & joyc(6) & joyc(4) & joyc(5)
@@ -752,8 +742,8 @@ mycontrolmodule : entity work.CtrlModule
 		osd_pixel => osd_pixel,
 		
 		-- Gamepad emulation
-		gp1emu => gp1emu,
-		gp2emu => gp2emu
+		gp1emu => open,
+		gp2emu => open
 );
 
 
