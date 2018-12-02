@@ -34,30 +34,27 @@ entity Virtual_Toplevel is
 		DAC_LDATA : out std_logic_vector(15 downto 0);
 		DAC_RDATA : out std_logic_vector(15 downto 0);
 		
-		VGA_R		: out std_logic_vector(7 downto 0);
-		VGA_G		: out std_logic_vector(7 downto 0);
-		VGA_B		: out std_logic_vector(7 downto 0);
-		VGA_VS		: out std_logic;
-		VGA_HS		: out std_logic;
+		R		: out std_logic_vector(2 downto 0);
+		G		: out std_logic_vector(2 downto 0);
+		B		: out std_logic_vector(2 downto 0);
+		VS		: buffer std_logic;
+		HS		: buffer std_logic;
 
-		RS232_RXD : in std_logic;
-		RS232_TXD : out std_logic;
-
-		ps2k_clk_out : out std_logic;
-		ps2k_dat_out : out std_logic;
-		ps2k_clk_in : in std_logic;
-		ps2k_dat_in : in std_logic;
-		
 		joya : in std_logic_vector(7 downto 0) := (others =>'1');
 		joyb : in std_logic_vector(7 downto 0) := (others =>'1');
 		joyc : in std_logic_vector(7 downto 0) := (others =>'1');
 		joyd : in std_logic_vector(7 downto 0) := (others =>'1');
 		joye : in std_logic_vector(7 downto 0) := (others =>'1');
 
-		spi_miso		: in std_logic := '1';
-		spi_mosi		: out std_logic;
-		spi_clk		: out std_logic;
-		spi_cs 		: out std_logic
+        -- ROM Loader / Host boot data
+        ext_reset_n    : in std_logic := '1';
+        ext_bootdone   : in std_logic := '0';
+        ext_data       : in std_logic_vector(15 downto 0) := (others => '0');
+        ext_data_req   : out std_logic;
+        ext_data_ack   : in std_logic := '0';
+
+        -- DIP switches
+        ext_sw         : in std_logic_vector(15 downto 0)
 	);
 end entity;
 
@@ -108,7 +105,6 @@ signal RAM_DO		: std_logic_vector(7 downto 0);
 
 -- ROM signals
 signal HEADER		: std_logic;
-signal SPLIT		: std_logic;
 signal BITFLIP		: std_logic;
 
 signal FL_RST_N_FF	: std_logic := '1';
@@ -120,27 +116,6 @@ signal VCE_DO		: std_logic_vector(7 downto 0);
 signal VDC_DO		: std_logic_vector(7 downto 0);
 signal VDC_BUSY_N	: std_logic;
 signal VDC_IRQ_N	: std_logic;
-
--- NTSC/RGB Video Output
-signal RED			: std_logic_vector(7 downto 0);
-signal GREEN			: std_logic_vector(7 downto 0);
-signal BLUE			: std_logic_vector(7 downto 0);		
-signal VS_N			: std_logic;
-signal HS_N			: std_logic;
-
--- VGA Video Output
-signal VGA_RED			: std_logic_vector(7 downto 0);
-signal VGA_GREEN			: std_logic_vector(7 downto 0);
-signal VGA_BLUE			: std_logic_vector(7 downto 0);		
-signal VGA_VS_N			: std_logic;
-signal VGA_HS_N			: std_logic;
-
--- current video signal (switchable between TV and VGA)
-signal vga_red_i : std_logic_vector(7 downto 0);
-signal vga_green_i : std_logic_vector(7 downto 0);
-signal vga_blue_i	: std_logic_vector(7 downto 0);		
-signal vga_vsync_i : std_logic;
-signal vga_hsync_i : std_logic;
 
 -- VDC signals
 signal VDC_COLNO	: std_logic_vector(8 downto 0);
@@ -179,7 +154,7 @@ signal VDCDMAS_RAM_ACK	: std_logic;
 
 signal SDR_INIT_DONE	: std_logic;
 
-type bootStates is (BOOT_READ_1, BOOT_READ_2, BOOT_WRITE_1, BOOT_WRITE_2, BOOT_WRITE_3, BOOT_WRITE_4, BOOT_REL, BOOT_DONE);
+type bootStates is (BOOT_READ_1, BOOT_WRITE_1, BOOT_WRITE_2, BOOT_DONE);
 signal bootState : bootStates := BOOT_READ_1;
 signal bootTimer : integer range 0 to 32767;
 
@@ -197,18 +172,9 @@ signal romrd_a : std_logic_vector(addrwidth downto 3);
 signal romrd_q : std_logic_vector(63 downto 0);
 signal romrd_a_cached : std_logic_vector(addrwidth downto 3);
 signal romrd_q_cached : std_logic_vector(63 downto 0);
-
-signal host_reset_n : std_logic;
-signal host_bootdone : std_logic;
 signal rommap : std_logic_vector(1 downto 0);
 
-signal boot_req : std_logic;
-signal boot_ack : std_logic;
-signal boot_data : std_logic_vector(15 downto 0);
 signal FL_DQ : std_logic_vector(15 downto 0);
-
-signal osd_window : std_logic;
-signal osd_pixel : std_logic;
 
 type romStates is (ROM_IDLE, ROM_READ);
 signal romState : romStates := ROM_IDLE;
@@ -217,9 +183,6 @@ signal CPU_A_PREV : std_logic_vector(20 downto 0);
 signal ROM_RDY	: std_logic;
 signal ROM_DO	: std_logic_vector(7 downto 0);
 
-signal SW : std_logic_vector(11 downto 0);
-signal KEY : std_logic_vector(3 downto 0);
-
 signal gamepad_port : unsigned(2 downto 0);
 signal multitap : std_logic :='1';
 signal prev_sel : std_logic;
@@ -227,17 +190,11 @@ signal prev_sel : std_logic;
 begin
 
 -- Reset
-PRE_RESET_N <= reset and SDR_INIT_DONE and host_reset_n;
+PRE_RESET_N <= reset and SDR_INIT_DONE and ext_reset_n;
 
 -- Bit flipping switch
-BITFLIP <= SW(2);
--- ROM splitting switch
-SPLIT <= rommap(1);
-multitap <= SW(4);
-
--- I/O
--- GPIO_1 <= (others => 'Z');
-
+BITFLIP <= ext_sw(2);
+multitap <= ext_sw(4);
 
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
@@ -303,18 +260,11 @@ VCE : entity work.huc6260 port map(
 	CLKEN		=> VDC_CLKEN,
 		
 	-- NTSC/RGB Video Output
-	R			=> RED,
-	G			=> GREEN,
-	B			=> BLUE,
-	VS_N		=> VS_N,
-	HS_N		=> HS_N,
-		
-	-- VGA Video Output (Scandoubler)
-	VGA_R		=> VGA_RED,
-	VGA_G		=> VGA_GREEN,
-	VGA_B		=> VGA_BLUE,
-	VGA_VS_N	=> VGA_VS_N,
-	VGA_HS_N	=> VGA_HS_N
+	R			=> R,
+	G			=> G,
+	B			=> B,
+	VS_N		=> VS,
+	HS_N		=> HS
 );
 
 
@@ -365,8 +315,8 @@ VDC : entity work.huc6270 port map(
 	-- VCE Interface
 	COLNO		=> VDC_COLNO,
 	CLKEN		=> VDC_CLKEN,
-	HS_N		=> HS_N,
-	VS_N		=> VS_N
+	HS_N		=> HS,
+	VS_N		=> VS
 
 );
 -- VDC_RAM_A_FULL <= "00" & "1000" & VDC_RAM_A;
@@ -570,16 +520,17 @@ end process;
 
 -- Boot process
 
-FL_DQ<=boot_data;
+FL_DQ<=ext_data;
 
-ROM_RESET_N <= host_bootdone and host_reset_n;
+ROM_RESET_N <= ext_bootdone and ext_reset_n;
 
 process( SDR_CLK )
 begin
 	if rising_edge( SDR_CLK ) then
 		if PRE_RESET_N = '0' then
 				
-			boot_req <='0';
+			ext_data_req <='0';
+			rommap <= "00";
 			
 			romwr_req <= '0';
 			romwr_a <= to_unsigned(0, addrwidth);
@@ -588,13 +539,21 @@ begin
 		else
 			case bootState is 
 				when BOOT_READ_1 =>
-					boot_req<='1';
-					if boot_ack='1' then
-						boot_req<='0';
+					ext_data_req<='1';
+					if ext_data_ack='1' then
+						ext_data_req<='0';
 						bootState <= BOOT_WRITE_1;
 					end if;
-					if host_bootdone='1' then
-						boot_req<='0';
+					if ext_bootdone='1' then
+						case romwr_a(19 downto 16) is
+						when x"6" =>
+							rommap <= "01"; -- 384K ROM
+						when x"c" =>
+							rommap <= "10"; -- 768K ROM
+						when others =>
+							rommap <= "00";
+						end case;
+						ext_data_req<='0';
 						bootState <= BOOT_DONE;
 					end if;
 				when BOOT_WRITE_1 =>
@@ -626,10 +585,6 @@ begin
 					if romwr_req = romwr_ack then
 						romwr_a <= romwr_a + 1;
 						bootState <= BOOT_READ_1;
-					end if;
-				when BOOT_REL =>
-					if CPU_CLKRST = '1' then
-						bootState <= BOOT_DONE;
 					end if;
 				when others => null;
 			end case;	
@@ -695,85 +650,5 @@ begin
 	end if;
 
 end process;
-	
--- Control module:
-
-mycontrolmodule : entity work.CtrlModule
-	generic map (
-		sysclk_frequency => 1270 -- Sysclk frequency * 10
-	)
-	port map (
-		clk => SDR_CLK,
-		reset_n => reset,
-
-		-- SPI signals
-		spi_miso	=> spi_miso,
-		spi_mosi => spi_mosi,
-		spi_clk => spi_clk,
-		spi_cs => spi_cs,
-		
-		-- UART
-		rxd => RS232_RXD,
-		txd => RS232_TXD,
-		
-		-- DIP switches
-		dipswitches => SW,
-
-		-- PS2 keyboard
-		ps2k_clk_in => ps2k_clk_in,
-		ps2k_dat_in => ps2k_dat_in,
-		ps2k_clk_out => ps2k_clk_out,
-		ps2k_dat_out => ps2k_dat_out,
-		
-		-- Host control
-		host_reset_n => host_reset_n,
-		host_bootdone => host_bootdone,
-		
-		-- Host boot data
-		host_bootdata => boot_data,
-		host_bootdata_req => boot_req,
-		host_bootdata_ack => boot_ack,
-		rommap => rommap,
-		
-		-- Video signals for OSD
-		vga_hsync => vga_hsync_i,
-		vga_vsync => vga_vsync_i,
-		osd_window => osd_window,
-		osd_pixel => osd_pixel,
-		
-		-- Gamepad emulation
-		gp1emu => open,
-		gp2emu => open
-);
-
-
-overlay : entity work.OSD_Overlay
-	port map
-	(
-		clk => SDR_CLK,
-		red_in => vga_red_i,
-		green_in => vga_green_i,
-		blue_in => vga_blue_i,
-		window_in => '1',
-		osd_window_in => osd_window,
-		osd_pixel_in => osd_pixel,
-		hsync_in => vga_hsync_i,
-		red_out => VGA_R,
-		green_out => VGA_G,
-		blue_out => VGA_B,
-		window_out => open,
-		scanline_ena => SW(1)
-	);
-
--- Select between VGA and TV output	
-vga_red_i <= RED when SW(0)='1' else VGA_RED;
-vga_green_i <= GREEN when SW(0)='1' else VGA_GREEN;
-vga_blue_i <= BLUE when SW(0)='1' else VGA_BLUE;
-vga_hsync_i <= HS_N when SW(0)='1' else VGA_HS_N;
-vga_vsync_i <= VS_N when SW(0)='1' else VGA_VS_N;
-
-VGA_HS <= not (vga_hsync_i xor vga_vsync_i) when SW(0)='1' else vga_hsync_i;
-VGA_VS <= '1' when SW(0)='1' else vga_vsync_i;
-
 
 end rtl;

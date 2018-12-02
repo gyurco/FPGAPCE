@@ -24,18 +24,11 @@ entity huc6260 is
 		CLKEN		: out std_logic;
 		
 		-- NTSC/RGB Video Output
-		R			: out std_logic_vector(7 downto 0);
-		G			: out std_logic_vector(7 downto 0);
-		B			: out std_logic_vector(7 downto 0);		
+		R			: out std_logic_vector(2 downto 0);
+		G			: out std_logic_vector(2 downto 0);
+		B			: out std_logic_vector(2 downto 0);		
 		VS_N		: out std_logic;
-		HS_N		: out std_logic;
-		
-		-- VGA Video Output (Scandoubler)
-		VGA_R		: out std_logic_vector(7 downto 0);
-		VGA_G		: out std_logic_vector(7 downto 0);
-		VGA_B		: out std_logic_vector(7 downto 0);
-		VGA_VS_N	: out std_logic;
-		VGA_HS_N	: out std_logic
+		HS_N		: out std_logic
 	);
 end huc6260;
 
@@ -72,17 +65,10 @@ signal B_FF			: std_logic_vector(2 downto 0);
 signal VS_N_FF		: std_logic;
 signal HS_N_FF		: std_logic;
 
--- VGA Video Output (Scandoubler)
-signal VGA_R_FF		: std_logic_vector(2 downto 0);
-signal VGA_G_FF		: std_logic_vector(2 downto 0);
-signal VGA_B_FF		: std_logic_vector(2 downto 0);
-signal VGA_VS_N_FF	: std_logic;
-signal VGA_HS_N_FF	: std_logic;
-
 -- Video Counting
 constant VGA_LINE_CLOCKS	: integer := 1364;
 constant VGA_HS_CLOCKS		: integer := 162-40;	-- (3.77us * 21.477MHz * 2) http://www.epanorama.net/documents/pc/vga_timing.html
-constant VGA_LEFT_BL_CLOCKS	: integer := 243-60;	-- ((3.77+1.89)us * 21.477MHz * 2) http://www.epanorama.net/documents/pc/vga_timing.html
+constant VGA_LEFT_BL_CLOCKS	: integer := 243;---60;	-- ((3.77+1.89)us * 21.477MHz * 2) http://www.epanorama.net/documents/pc/vga_timing.html
 constant VGA_DISP_CLOCKS	: integer := 1081;	-- (25.17us * 21.477MHz * 2) http://www.epanorama.net/documents/pc/vga_timing.html
 
 constant HS_CLOCKS			: integer := 202;	-- (4.7us * 21.477MHz * 2) http://www.epanorama.net/documents/video/video_timing.html
@@ -102,19 +88,7 @@ signal VGA_V_CNT	: std_logic_vector(9 downto 0);
 signal CLKEN_FF		: std_logic;
 signal CLKEN_CNT	: std_logic_vector(2 downto 0);
 
--- Scandoubler
-signal SL0_WE		: std_logic;
-signal SL1_WE		: std_logic;
-signal SL0_DO		: std_logic_vector(8 downto 0);
-signal SL1_DO		: std_logic_vector(8 downto 0);
-
-signal reset_int : std_logic; -- We need to disable reset for part of this component
-										-- to keep the display alive, otherwise the OSD won't be
-										-- visible!  -- AMR
-
 begin
-
-reset_int<='1';
 
 -- Color RAM
 ram : entity work.colram port map(
@@ -131,24 +105,6 @@ ram : entity work.colram port map(
 	q_b			=> COLOR
 );
 -- COLOR <= H_CNT(6 downto 4) & VGA_V_CNT(6 downto 4) & H_CNT(8 downto 6);
-
--- Scandoubler RAMs
-sl0 : entity work.scanline port map(
-	clock		=> CLK,
-	data		=> COLOR_BL,
-	wraddress	=> H_CNT,
-	rdaddress	=> VGA_H_CNT,
-	wren		=> SL0_WE,
-	q			=> SL0_DO
-);
-sl1 : entity work.scanline port map(
-	clock		=> CLK,
-	data		=> COLOR_BL,
-	wraddress	=> H_CNT,
-	rdaddress	=> VGA_H_CNT,
-	wren		=> SL1_WE,
-	q			=> SL1_DO
-);
 
 process( CLK )
 begin
@@ -230,7 +186,7 @@ end process;
 process( CLK )
 begin
 	if rising_edge( CLK ) then
-		if reset_int = '0' then
+		if RESET_N = '0' then
 			H_CNT <= (others => '0');
 			VGA_H_CNT <= (others => '0');
 			VGA_V_CNT <= (others => '0');
@@ -282,9 +238,8 @@ end process;
 process( CLK )
 begin
 	if rising_edge( CLK ) then
-		if reset_int = '0' then
+		if RESET_N = '0' then
 			HS_N_FF <= '0';
-			VGA_HS_N_FF <= '0';
 		else
 			if H_CNT = 0 then
 				HS_N_FF <= '0';
@@ -292,12 +247,6 @@ begin
 			if H_CNT = HS_CLOCKS-1 then
 				HS_N_FF <= '1';
 			end if;
-			if VGA_H_CNT = 0 then
-				VGA_HS_N_FF <= '0';
-			end if;
-			if VGA_H_CNT = VGA_HS_CLOCKS-1 then
-				VGA_HS_N_FF <= '1';
-			end if;		
 		end if;
 	end if;
 end process;
@@ -306,21 +255,14 @@ end process;
 process( CLK )
 begin
 	if rising_edge( CLK ) then
-		if reset_int = '0' then
+		if RESET_N = '0' then
 			VS_N_FF <= '0';
-			VGA_VS_N_FF <= '0';
 		else
 			if VGA_V_CNT = 0 then
 				VS_N_FF <= '0';
 			end if;
 			if VGA_V_CNT = VS_LINES-1 then
 				VS_N_FF <= '1';
-			end if;
-			if VGA_V_CNT = 0 then
-				VGA_VS_N_FF <= '0';
-			end if;
-			if VGA_V_CNT = VGA_VS_LINES-1 then
-				VGA_VS_N_FF <= '1';
 			end if;
 		end if;
 	end if;
@@ -332,7 +274,7 @@ end process;
 process( CLK )
 begin
 	if rising_edge( CLK ) then
-		if reset_int = '0' then
+		if RESET_N = '0' then
 			COLOR_BL <= (others => '0');
 			BL_N <= '0';
 		else
@@ -354,49 +296,14 @@ G_FF <= COLOR_BL(8 downto 6);
 R_FF <= COLOR_BL(5 downto 3);
 B_FF <= COLOR_BL(2 downto 0);
 
--- 15 KHz writes
-process( CLK )
-begin
-	if rising_edge( CLK ) then
-		if RESET_N = '0' then
-			SL0_WE <= '0';
-			SL1_WE <= '0';
-		else
-			SL0_WE <= '0';
-			SL1_WE <= '0';
-			if VGA_H_CNT(0) = '1' then
-				if VGA_V_CNT(1) = '0' then
-					SL0_WE <= '1';
-				else
-					SL1_WE <= '1';
-				end if;
-			end if;
-		end if;
-	end if;
-end process;
-
--- 31 KHz reads
-VGA_G_FF <= SL0_DO(8 downto 6) when VGA_V_CNT(1) = '1'
-	else SL1_DO(8 downto 6);
-VGA_R_FF <= SL0_DO(5 downto 3) when VGA_V_CNT(1) = '1'
-	else SL1_DO(5 downto 3);
-VGA_B_FF <= SL0_DO(2 downto 0) when VGA_V_CNT(1) = '1'
-	else SL1_DO(2 downto 0);
-
 -- Outputs
 DO <= DO_FF;
 
-R <= R_FF & R_FF & R_FF(1 downto 0);
-G <= G_FF & G_FF & G_FF(1 downto 0);
-B <= B_FF & B_FF & B_FF(1 downto 0);
+R <= R_FF;
+G <= G_FF;
+B <= B_FF;
 VS_N <= VS_N_FF;
 HS_N <= HS_N_FF;
-
-VGA_R <= VGA_R_FF & VGA_R_FF & VGA_R_FF(1 downto 0);
-VGA_G <= VGA_G_FF & VGA_G_FF & VGA_G_FF(1 downto 0);
-VGA_B <= VGA_B_FF & VGA_B_FF & VGA_B_FF(1 downto 0);
-VGA_VS_N <= VGA_VS_N_FF;
-VGA_HS_N <= VGA_HS_N_FF;
 
 CLKEN <= CLKEN_FF;
 

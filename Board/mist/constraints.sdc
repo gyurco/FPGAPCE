@@ -101,8 +101,8 @@ set_false_path -to [get_ports {LED}]
 set_multicycle_path -from [get_clocks {U00|altpll_component|auto_generated|pll1|clk[1]}] -to [get_clocks {U00|altpll_component|auto_generated|pll1|clk[0]}] -setup 2
 set_multicycle_path -from [get_clocks {U00|altpll_component|auto_generated|pll1|clk[1]}] -to [get_clocks {U00|altpll_component|auto_generated|pll1|clk[0]}] -hold 2
 
-set_multicycle_path -to {VGA_*[*]} -setup 2
-set_multicycle_path -to {VGA_*[*]} -hold 2
+set_multicycle_path -to {VGA_*[*]} -setup 3
+set_multicycle_path -to {VGA_*[*]} -hold 3
 
 #**************************************************************
 # Set Maximum Delay
