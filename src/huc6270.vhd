@@ -26,35 +26,13 @@ entity huc6270 is
 		BUSY_N		: out std_logic;
 		IRQ_N		: out std_logic;
 
-		BG_RAM_A	: out std_logic_vector(15 downto 0);		
-		BG_RAM_DO	: in std_logic_vector(15 downto 0);
-		BG_RAM_REQ	: out std_logic;
-		BG_RAM_ACK	: in std_logic;
-		
-		SP_RAM_A	: out std_logic_vector(15 downto 0);
-		SP_RAM_DO	: in std_logic_vector(15 downto 0);
-		SP_RAM_REQ	: out std_logic;
-		SP_RAM_ACK	: in std_logic;
+		vram_req	: out std_logic;
+		vram_ack	: in std_logic;
+		vram_we		: out std_logic;
+		vram_a		: out std_logic_vector(15 downto 0);
+		vram_d		: out std_logic_vector(15 downto 0);
+		vram_q		: in std_logic_vector(15 downto 0);
 
-		CPU_RAM_REQ	: out std_logic;
-		CPU_RAM_A	: out std_logic_vector(15 downto 0);
-		CPU_RAM_DO	: in std_logic_vector(15 downto 0); -- Output from RAM
-		CPU_RAM_DI	: out std_logic_vector(15 downto 0);
-		CPU_RAM_WE	: out std_logic;
-		CPU_RAM_ACK	: in std_logic;
-
-		DMA_RAM_REQ	: out std_logic;
-		DMA_RAM_A	: out std_logic_vector(15 downto 0);
-		DMA_RAM_DO	: in std_logic_vector(15 downto 0); -- Output from RAM
-		DMA_RAM_DI	: out std_logic_vector(15 downto 0);
-		DMA_RAM_WE	: out std_logic;
-		DMA_RAM_ACK	: in std_logic;
-
-		DMAS_RAM_REQ	: out std_logic;
-		DMAS_RAM_A		: out std_logic_vector(15 downto 0);
-		DMAS_RAM_DO		: in std_logic_vector(15 downto 0); -- Output from RAM
-		DMAS_RAM_ACK	: in std_logic;
-		
 		-- VCE Interface
 		COLNO		: out std_logic_vector(8 downto 0);
 		CLKEN		: in std_logic;
@@ -66,6 +44,58 @@ end huc6270;
 
 architecture rtl of huc6270 is
 
+type vmc_t is (
+	VMC_IDLE,
+	VMC_BG,
+	VMC_SP,
+	VMC_CPU,
+	VMC_DMA,
+	VMC_DMAS
+);
+signal VMC	: vmc_t := VMC_IDLE;
+signal VMC_NEXT : vmc_t := VMC_IDLE;
+signal vram_req_reg : std_logic;
+
+signal BG_RAM_A		: std_logic_vector(15 downto 0);
+signal BG_RAM_DO	: std_logic_vector(15 downto 0);
+signal BG_DO_REG	: std_logic_vector(15 downto 0);
+signal BG_RAM_REQ	: std_logic;
+signal BG_RAM_ACK	: std_logic;
+signal BG_RAM_ACK_REG	: std_logic;
+
+signal SP_RAM_A		: std_logic_vector(15 downto 0);
+signal SP_RAM_DO	: std_logic_vector(15 downto 0);
+signal SP_DO_REG	: std_logic_vector(15 downto 0);
+signal SP_RAM_REQ	: std_logic;
+signal SP_RAM_ACK	: std_logic;
+signal SP_RAM_ACK_REG : std_logic;
+
+signal CPU_RAM_REQ	: std_logic;
+signal CPU_RAM_A	: std_logic_vector(15 downto 0);
+signal CPU_RAM_DO	: std_logic_vector(15 downto 0); -- Output from RAM
+signal CPU_DO_REG	: std_logic_vector(15 downto 0); -- Output from RAM
+signal CPU_RAM_DI	: std_logic_vector(15 downto 0);
+signal CPU_RAM_WE	: std_logic;
+signal CPU_RAM_ACK	: std_logic;
+signal CPU_RAM_ACK_REG: std_logic;
+
+signal DMA_RAM_REQ	: std_logic;
+signal DMA_RAM_A	: std_logic_vector(15 downto 0);
+signal DMA_RAM_DO	: std_logic_vector(15 downto 0); -- Output from RAM
+signal DMA_DO_REG	: std_logic_vector(15 downto 0); -- Output from RAM
+signal DMA_RAM_DI	: std_logic_vector(15 downto 0);
+signal DMA_RAM_WE	: std_logic;
+signal DMA_RAM_ACK	: std_logic;
+signal DMA_RAM_ACK_REG: std_logic;
+
+signal DMAS_RAM_REQ	: std_logic;
+signal DMAS_RAM_A	: std_logic_vector(15 downto 0);
+signal DMAS_RAM_DO	: std_logic_vector(15 downto 0); -- Output from RAM
+signal DMAS_DO_REG	: std_logic_vector(15 downto 0); -- Output from RAM
+signal DMAS_RAM_ACK	: std_logic;
+signal DMAS_RAM_ACK_REG: std_logic;
+
+signal RAM_REQ_PROGRESS : std_logic;
 --------------------------------------------------------------------------------
 -- Registers
 --------------------------------------------------------------------------------
@@ -426,6 +456,96 @@ constant speedUpSp	: boolean := true;
 constant speedUpBg	: boolean := true;
 
 begin
+
+----------------------------------------------------------------
+-- VRAM CONTROLLER
+----------------------------------------------------------------
+vram_req <= vram_req_reg;
+
+-- Get the ack and data one cycle earlier
+BG_RAM_DO <= vram_q when VMC = VMC_BG else BG_DO_REG;
+SP_RAM_DO <= vram_q when VMC = VMC_SP else SP_DO_REG;
+CPU_RAM_DO <= vram_q when VMC = VMC_CPU else CPU_DO_REG;
+DMA_RAM_DO <= vram_q when VMC = VMC_DMA else DMA_DO_REG;
+DMAS_RAM_DO <= vram_q when VMC = VMC_DMAS else DMAS_DO_REG;
+
+BG_RAM_ACK <= BG_RAM_REQ when VMC = VMC_BG and vram_req_reg = vram_ack and RAM_REQ_PROGRESS = '1' else BG_RAM_ACK_REG;
+SP_RAM_ACK <= SP_RAM_REQ when VMC = VMC_SP and vram_req_reg = vram_ack and RAM_REQ_PROGRESS = '1' else SP_RAM_ACK_REG;
+CPU_RAM_ACK <= CPU_RAM_REQ when VMC = VMC_CPU and vram_req_reg = vram_ack and RAM_REQ_PROGRESS = '1' else CPU_RAM_ACK_REG;
+DMA_RAM_ACK <= DMA_RAM_REQ when VMC = VMC_DMA and vram_req_reg = vram_ack and RAM_REQ_PROGRESS = '1' else DMA_RAM_ACK_REG;
+DMAS_RAM_ACK <= DMAS_RAM_REQ when VMC = VMC_DMAS and vram_req_reg = vram_ack and RAM_REQ_PROGRESS = '1' else DMAS_RAM_ACK_REG;
+
+VMC_NEXT <= VMC_BG when BG_RAM_REQ /= BG_RAM_ACK else
+			VMC_SP when SP_RAM_REQ /= SP_RAM_ACK else
+			VMC_CPU when CPU_RAM_REQ /= CPU_RAM_ACK else
+			VMC_DMA when DMA_RAM_REQ /= DMA_RAM_ACK else
+			VMC_DMAS when DMAS_RAM_REQ /= DMAS_RAM_ACK else
+			VMC_IDLE;
+
+process( RESET_N, CLK)
+begin
+	if RESET_N = '0' then
+
+		vram_req_reg <= '0';
+
+		VMC<=VMC_IDLE;
+		RAM_REQ_PROGRESS <= '0';
+	elsif rising_edge(CLK) then
+
+		if vram_req_reg = vram_ack then
+			if RAM_REQ_PROGRESS = '0' then
+				VMC <= VMC_NEXT;
+				case VMC_NEXT is
+				when VMC_IDLE =>
+					null;
+				when VMC_BG =>
+					vram_a <= BG_RAM_A;
+					vram_we <= '0';
+				when VMC_SP =>
+					vram_a <= SP_RAM_A;
+					vram_we <= '0';
+				when VMC_CPU =>
+					vram_a <= CPU_RAM_A;
+					vram_we <= CPU_RAM_WE;
+					vram_d <= CPU_RAM_DI;
+				when VMC_DMA =>
+					vram_a <= DMA_RAM_A;
+					vram_we <= DMA_RAM_WE;
+					vram_d <= DMA_RAM_DI;
+				when VMC_DMAS =>
+					vram_a <= DMAS_RAM_A;
+					vram_we <= '0';
+				end case;
+				if VMC_NEXT /= VMC_IDLE then
+					vram_req_reg <= not vram_req_reg;
+					RAM_REQ_PROGRESS <= '1';
+				end if;
+			else
+				case VMC is
+				when VMC_IDLE =>
+					null;
+				when VMC_BG =>
+					BG_DO_REG <= vram_q;
+					BG_RAM_ACK_REG <= BG_RAM_REQ;
+				when VMC_SP =>
+					SP_DO_REG <= vram_q;
+					SP_RAM_ACK_REG <= SP_RAM_REQ;
+				when VMC_CPU =>
+					CPU_DO_REG <= vram_q;
+					CPU_RAM_ACK_REG <= CPU_RAM_REQ;
+				when VMC_DMA =>
+					DMA_DO_REG <= vram_q;
+					DMA_RAM_ACK_REG <= DMA_RAM_REQ;
+				when VMC_DMAS =>
+					DMAS_DO_REG <= vram_q;
+					DMAS_RAM_ACK_REG <= DMAS_RAM_REQ;
+				when others => null;
+				end case;
+				RAM_REQ_PROGRESS <= '0';
+			end if;
+		end if;
+	end if;
+end process;
 
 --------------------------------------------------------------------------------
 -- Background line buffer

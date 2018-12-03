@@ -121,36 +121,12 @@ signal VDC_IRQ_N	: std_logic;
 signal VDC_COLNO	: std_logic_vector(8 downto 0);
 signal VDC_CLKEN	: std_logic;
 
-
-signal VDCBG_RAM_A	: std_logic_vector(15 downto 0);		
-signal VDCBG_RAM_DO	: std_logic_vector(15 downto 0);
-signal VDCBG_RAM_REQ	: std_logic;
-signal VDCBG_RAM_ACK	: std_logic;
-		
-signal VDCSP_RAM_A	: std_logic_vector(15 downto 0);
-signal VDCSP_RAM_DO	: std_logic_vector(15 downto 0);
-signal VDCSP_RAM_REQ	: std_logic;
-signal VDCSP_RAM_ACK	: std_logic;
-
-signal VDCCPU_RAM_REQ	: std_logic;
-signal VDCCPU_RAM_A	: std_logic_vector(15 downto 0);
-signal VDCCPU_RAM_DO	: std_logic_vector(15 downto 0); -- Output from RAM
-signal VDCCPU_RAM_DI	: std_logic_vector(15 downto 0);
-signal VDCCPU_RAM_WE	: std_logic;
-signal VDCCPU_RAM_ACK	: std_logic;
-
-signal VDCDMA_RAM_REQ	: std_logic;
-signal VDCDMA_RAM_A	: std_logic_vector(15 downto 0);
-signal VDCDMA_RAM_DO	: std_logic_vector(15 downto 0); -- Output from RAM
-signal VDCDMA_RAM_DI	: std_logic_vector(15 downto 0);
-signal VDCDMA_RAM_WE	: std_logic;
-signal VDCDMA_RAM_ACK	: std_logic;
-
-signal VDCDMAS_RAM_REQ	: std_logic;
-signal VDCDMAS_RAM_A		: std_logic_vector(15 downto 0);
-signal VDCDMAS_RAM_DO		: std_logic_vector(15 downto 0); -- Output from RAM
-signal VDCDMAS_RAM_ACK	: std_logic;
-
+signal VRAM_REQ	: std_logic;
+signal VRAM_A	: std_logic_vector(15 downto 0);
+signal VRAM_DO	: std_logic_vector(15 downto 0); -- Output from RAM
+signal VRAM_DI	: std_logic_vector(15 downto 0);
+signal VRAM_WE	: std_logic;
+signal VRAM_ACK	: std_logic;
 
 signal SDR_INIT_DONE	: std_logic;
 
@@ -282,36 +258,14 @@ VDC : entity work.huc6270 port map(
 	DO 			=> VDC_DO,
 	BUSY_N		=> VDC_BUSY_N,
 	IRQ_N		=> VDC_IRQ_N,
-	
-	BG_RAM_A	=> VDCBG_RAM_A,
-	BG_RAM_DO	=> VDCBG_RAM_DO,
-	BG_RAM_REQ	=> VDCBG_RAM_REQ,
-	BG_RAM_ACK	=> VDCBG_RAM_ACK,
-	
-	SP_RAM_A	=> VDCSP_RAM_A,
-	SP_RAM_DO	=> VDCSP_RAM_DO,
-	SP_RAM_REQ	=> VDCSP_RAM_REQ,
-	SP_RAM_ACK	=> VDCSP_RAM_ACK,
-	
-	CPU_RAM_REQ	=> VDCCPU_RAM_REQ,
-	CPU_RAM_A	=> VDCCPU_RAM_A,
-	CPU_RAM_DO	=> VDCCPU_RAM_DO,
-	CPU_RAM_DI	=> VDCCPU_RAM_DI,
-	CPU_RAM_WE	=> VDCCPU_RAM_WE,
-	CPU_RAM_ACK	=> VDCCPU_RAM_ACK,
-	
-	DMA_RAM_REQ => VDCDMA_RAM_REQ,
-	DMA_RAM_A	=> VDCDMA_RAM_A,
-	DMA_RAM_DO	=> VDCDMA_RAM_DO,
-	DMA_RAM_DI	=> VDCDMA_RAM_DI,
-	DMA_RAM_WE	=> VDCDMA_RAM_WE,
-	DMA_RAM_ACK	=> VDCDMA_RAM_ACK,
-	
-	DMAS_RAM_REQ	=> VDCDMAS_RAM_REQ,
-	DMAS_RAM_A		=> VDCDMAS_RAM_A,
-	DMAS_RAM_DO		=> VDCDMAS_RAM_DO,
-	DMAS_RAM_ACK	=> VDCDMAS_RAM_ACK,
-	
+
+	vram_req	=> VRAM_REQ,
+	vram_a		=> VRAM_A,
+	vram_q		=> VRAM_DO,
+	vram_d		=> VRAM_DI,
+	vram_we		=> VRAM_WE,
+	vram_ack	=> VRAM_ACK,
+
 	-- VCE Interface
 	COLNO		=> VDC_COLNO,
 	CLKEN		=> VDC_CLKEN,
@@ -321,66 +275,57 @@ VDC : entity work.huc6270 port map(
 );
 -- VDC_RAM_A_FULL <= "00" & "1000" & VDC_RAM_A;
 
+	sdr : entity work.chameleon_sdram
+		generic map (
+			casLatency => 2,
+--			casLatency => 3,
+			colAddrBits => colAddrBits,
+			rowAddrBits => rowAddrBits,
+--			t_ck_ns => 10.0
+--			t_ck_ns => 6.7
+			t_ck_ns => 11.7
+--			t_ck_ns => 23.5
+--			t_ck_ns => 8.3	
+		)
+		port map (
+			clk => SDR_CLK,
 
-SDRC : entity work.sdram_controller
-	generic map(
-		colAddrBits => colAddrBits,
-		rowAddrBits => rowAddrBits
-	)
-	port map(
-	clk			=> SDR_CLK,
-	
-	std_logic_vector(sd_data) => DRAM_DQ,
-	std_logic_vector(sd_addr) => DRAM_ADDR,
-	sd_we_n		=> DRAM_WE_N,
-	sd_ras_n	=> DRAM_RAS_N,
-	sd_cas_n	=> DRAM_CAS_N,
-	sd_ba_0		=> DRAM_BA_0,
-	sd_ba_1		=> DRAM_BA_1,
-	sd_ldqm		=> DRAM_LDQM,
-	sd_udqm		=> DRAM_UDQM,
-	
-	vdccpu_req		=> VDCCPU_RAM_REQ,
-	vdccpu_ack		=> VDCCPU_RAM_ACK,
-	vdccpu_we		=> VDCCPU_RAM_WE,
-	vdccpu_a		=> VDCCPU_RAM_A,
-	vdccpu_d		=> VDCCPU_RAM_DI,
-	vdccpu_q		=> VDCCPU_RAM_DO,
+			reserve => '0',
 
-	vdcbg_a	=> VDCBG_RAM_A,
-	vdcbg_q	=> VDCBG_RAM_DO,
-	vdcbg_req	=> VDCBG_RAM_REQ,
-	vdcbg_ack	=> VDCBG_RAM_ACK,
-	
-	vdcsp_a	=> VDCSP_RAM_A,
-	vdcsp_q	=> VDCSP_RAM_DO,
-	vdcsp_req	=> VDCSP_RAM_REQ,
-	vdcsp_ack	=> VDCSP_RAM_ACK,
-	
-	vdcdma_req => VDCDMA_RAM_REQ,
-	vdcdma_a	=> VDCDMA_RAM_A,
-	vdcdma_q	=> VDCDMA_RAM_DO,
-	vdcdma_d	=> VDCDMA_RAM_DI,
-	vdcdma_we	=> VDCDMA_RAM_WE,
-	vdcdma_ack	=> VDCDMA_RAM_ACK,
-	
-	vdcdmas_req	=> VDCDMAS_RAM_REQ,
-	vdcdmas_a		=> VDCDMAS_RAM_A,
-	vdcdmas_q		=> VDCDMAS_RAM_DO,
-	vdcdmas_ack	=> VDCDMAS_RAM_ACK,
-	
-	romwr_req	=> romwr_req,
-	romwr_ack	=> romwr_ack,
-	romwr_a		=> romwr_a,
-	romwr_d		=> romwr_d,
-	
-	romrd_req	=> romrd_req,
-	romrd_ack	=> romrd_ack,
-	romrd_a		=> romrd_a,
-	romrd_q		=> romrd_q,
-	
-	initDone 	=> SDR_INIT_DONE
-);
+			sd_data => DRAM_DQ,
+			sd_addr => DRAM_ADDR,
+			sd_we_n => DRAM_WE_N,
+			sd_ras_n => DRAM_RAS_N,
+			sd_cas_n => DRAM_CAS_N,
+			sd_ba_0 => DRAM_BA_0,
+			sd_ba_1 => DRAM_BA_1,
+			sd_ldqm => DRAM_LDQM,
+			sd_udqm => DRAM_UDQM,
+
+			vram_req => VRAM_REQ,
+			vram_ack => VRAM_ACK,
+			vram_we => VRAM_WE,
+			vram_a => "100000" & VRAM_A,
+			vram_d => VRAM_DI,
+			vram_q => VRAM_DO,
+
+			romwr_req => romwr_req,
+			romwr_ack => romwr_ack,
+			romwr_we => '1',
+			romwr_a => std_logic_vector(romwr_a),
+			romwr_d => romwr_d,
+
+			romrd_req => romrd_req,
+			romrd_ack => romrd_ack,
+			romrd_a => romrd_a,
+			romrd_q => romrd_q,
+
+			initDone => SDR_INIT_DONE,
+
+			debugIdle => open,
+			debugRefresh => open
+		);
+
 DRAM_CKE <= '1';
 DRAM_CS_N <= '0';
 
@@ -396,12 +341,6 @@ CPU_DI <= RAM_DO when CPU_RD_N = '0' and CPU_RAM_SEL_N = '0'
 	else VCE_DO when CPU_RD_N = '0' and CPU_VCE_SEL_N = '0'
 	else VDC_DO when CPU_RD_N = '0' and CPU_VDC_SEL_N = '0'
 	else "ZZZZZZZZ";
-
-
-	
-	
--- ROM_RDY <= '1' when romrd_req = romrd_ack else '0';
-
 
 process( CLK )
 begin

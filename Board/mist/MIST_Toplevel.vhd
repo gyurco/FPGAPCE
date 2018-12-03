@@ -248,7 +248,6 @@ begin
         locked => pll_locked
     );
 
-SDRAM_A(12)<='0';
 ext_sw(0) <= '1'; -- 15kHz output
 ext_sw(2) <= status(2); -- rom data swap
 ext_sw(4) <= status(4); -- multitap

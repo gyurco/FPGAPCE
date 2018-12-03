@@ -48,8 +48,8 @@ entity chameleon_sdram is
 		delay_refresh : in std_logic := '0';
 
 -- SDRAM interface
-		sd_data : inout unsigned(15 downto 0);
-		sd_addr : out unsigned((rowAddrBits-1) downto 0);
+		sd_data : inout std_logic_vector(15 downto 0);
+		sd_addr : out std_logic_vector((rowAddrBits-1) downto 0);
 		sd_we_n : out std_logic;
 		sd_ras_n : out std_logic;
 		sd_cas_n : out std_logic;
@@ -58,115 +58,25 @@ entity chameleon_sdram is
 		sd_ldqm : out std_logic;
 		sd_udqm : out std_logic;
 
--- cache port
-		cache_req : in std_logic;
-		cache_ack : out std_logic;
-		cache_we : in std_logic;
-		cache_burst : in std_logic;
-		cache_a : in unsigned((colAddrBits+rowAddrBits+2) downto 0);
-		cache_d : in unsigned(63 downto 0);
-		cache_q : out unsigned(63 downto 0);
-
--- VGA Video read ports
-		vid0_req : in std_logic; -- Toggle for request
-		vid0_ack : out std_logic; -- Ack follows req when done
-		vid0_addr : unsigned((colAddrBits+rowAddrBits+2) downto 3);
-		vid0_do : out unsigned(63 downto 0);
-
-		vid1_rdStrobe : in std_logic; -- 1 clock pulse high to signal request
-		vid1_busy : out std_logic; -- Port is busy and can't accept requests
-		vid1_addr : unsigned((colAddrBits+rowAddrBits+2) downto 3);
-		vid1_do : out unsigned(63 downto 0);
-
--- VIC-II video write port
-		vicvid_wrStrobe : in std_logic; -- 1 clock pulse high to clock data in.
-		vicvid_busy : out std_logic; -- Port is busy and can't accept requests
-		vicvid_addr : unsigned((colAddrBits+rowAddrBits+2) downto 3);
-		vicvid_di : in unsigned(63 downto 0);
-
--- 6510 port (8 bit port)
-		cpu6510_ack : out std_logic; -- will follow 'request' after transfer
-		cpu6510_request : in std_logic; -- toggle to start memory request
-		cpu6510_we : in std_logic; -- 1 write action, 0 read action
-		cpu6510_a : in unsigned((colAddrBits+rowAddrBits+2) downto 0);
-		cpu6510_d : in unsigned(7 downto 0);
-		cpu6510_q : out unsigned(7 downto 0);
-
--- REU port (8 bit port)
-		reuStrobe : in std_logic; -- 1 clock pulse high to clock data in.
-		reuBusy : out std_logic; -- Port is busy and can't accept requests
-		reuWe : in std_logic; -- 1 write action, 0 read action
-		reuA : in unsigned((colAddrBits+rowAddrBits+2) downto 0);
-		reuD : in unsigned(7 downto 0);
-		reuQ : out unsigned(7 downto 0);
-
--- 1541 drive cpu port (8 bit port)
-		cpu1541_req : in std_logic;  -- Toggle for request
-		cpu1541_ack : out std_logic; -- Ack follows req when done
-		cpu1541_we : in std_logic; -- 1 write action, 0 read action
-		cpu1541_a : in unsigned((colAddrBits+rowAddrBits+2) downto 0);
-		cpu1541_d : in unsigned(7 downto 0);
-		cpu1541_q : out unsigned(7 downto 0);
-
--- drive disk port (8 bit port)
---		rawdisk_busy : out std_logic; -- Port is busy and can't accept requests
---		rawdisk_strobe : in std_logic; -- 1 clock pulse high to clock data in.
---		rawdisk_we : in std_logic; -- 1 write action, 0 read action
---		rawdisk_a : in unsigned(23 downto 0);
---		rawdisk_d : in unsigned(7 downto 0);
---		rawdisk_q : out unsigned(7 downto 0);
-
--- RISC CPU port (64 bit port?)
-
--- Copper port (64 bit port?)
-
--- Blitter ports
-
 --GE PCE VDC port (16 bits port)
-		vdccpu_req : in std_logic;
-		vdccpu_ack : out std_logic;
-		vdccpu_we : in std_logic;
-		vdccpu_a : in unsigned((colAddrBits+rowAddrBits+2) downto 1);
-		vdccpu_d : in unsigned(15 downto 0);
-		vdccpu_q : out unsigned(15 downto 0);
+		vram_req : in std_logic;
+		vram_ack : out std_logic;
+		vram_we : in std_logic;
+		vram_a : in std_logic_vector((colAddrBits+rowAddrBits+2) downto 1);
+		vram_d : in std_logic_vector(15 downto 0);
+		vram_q : out std_logic_vector(15 downto 0);
 
-		vdcdma_req : in std_logic;
-		vdcdma_ack : out std_logic;
-		vdcdma_we : in std_logic;
-		vdcdma_a : in unsigned((colAddrBits+rowAddrBits+2) downto 1);
-		vdcdma_d : in unsigned(15 downto 0);
-		vdcdma_q : out unsigned(15 downto 0);
-
-		vdcsp_req : in std_logic;
-		vdcsp_ack : out std_logic;
-		vdcsp_a : in unsigned((colAddrBits+rowAddrBits+2) downto 1);
-		vdcsp_q : out unsigned(15 downto 0);
-
-		vdcbg_req : in std_logic;
-		vdcbg_ack : out std_logic;
-		vdcbg_a : in unsigned((colAddrBits+rowAddrBits+2) downto 1);
-		vdcbg_q : out unsigned(15 downto 0);
-
-		vdcdmas_req : in std_logic;
-		vdcdmas_ack : out std_logic;
-		vdcdmas_a : in unsigned((colAddrBits+rowAddrBits+2) downto 1);
-		vdcdmas_q : out unsigned(15 downto 0);
-
-
-
-
-		
 		romwr_req : in std_logic;
 		romwr_ack : out std_logic;
 		romwr_we : in std_logic;
-		romwr_a : in unsigned((colAddrBits+rowAddrBits+2) downto 1);
-		romwr_d : in unsigned(15 downto 0);
-		romwr_q : out unsigned(15 downto 0);
+		romwr_a : in std_logic_vector((colAddrBits+rowAddrBits+2) downto 1);
+		romwr_d : in std_logic_vector(15 downto 0);
+		romwr_q : out std_logic_vector(15 downto 0);
 		
 		romrd_req : in std_logic;
 		romrd_ack : out std_logic;
-		romrd_a : in unsigned((colAddrBits+rowAddrBits+2) downto 3);
-		romrd_q : out unsigned(63 downto 0);
+		romrd_a : in std_logic_vector((colAddrBits+rowAddrBits+2) downto 3);
+		romrd_q : out std_logic_vector(63 downto 0);
 		
 --GE Temporary
 		initDone : out std_logic;
@@ -197,17 +107,6 @@ architecture rtl of chameleon_sdram is
 		RAM_READ_4,
 		RAM_READ_5,
 		RAM_WRITE_1,
-		RAM_WRITE_2,
-		RAM_WRITE_3,
-		RAM_WRITE_4,
-		RAM_WRITE_ABORT,
-		RAM_WRITE_DLY,
-		
-		HV_READ_1,
-		HV_READ_2,
-		HV_READ_3,
-		HV_WRITE_1,
-		HV_WRITE_2,
 		
 		RAM_PRECHARGE,
 		RAM_PRECHARGE_ALL,
@@ -216,37 +115,23 @@ architecture rtl of chameleon_sdram is
 	
 	type ramPorts is (
 		PORT_NONE,
-		PORT_CACHE,
-		PORT_VID0,
-		PORT_VID1,
-		PORT_VICVID,
-		PORT_CPU6510,
-		PORT_REU,
-		PORT_CPU_1541,
-		PORT_VDCCPU,
-		PORT_VDCDMA,
-		PORT_VDCSP,
-		PORT_VDCBG,
-		PORT_VDCDMAS,
+		PORT_VRAM,
 		PORT_ROMRD,
 		PORT_ROMWR
 	);
-	subtype row_t is unsigned((rowAddrBits-1) downto 0);
-	subtype col_t is unsigned((colAddrBits-1) downto 0);
+	subtype row_t is std_logic_vector((rowAddrBits-1) downto 0);
+	subtype col_t is std_logic_vector((colAddrBits-1) downto 0);
 	
 	signal ramTimer : integer range 0 to 32767;
 	signal ramState : ramStates := RAM_INIT;
-	signal ramAlmostDone : std_logic;
 	signal ramDone : std_logic;
 	
-	signal ram_data_reg : unsigned(sd_data'range);
-
-	signal cache_ack_reg : std_logic := '0';
+	signal ram_data_reg : std_logic_vector(sd_data'range);
 
 -- Registered sdram signals
-	signal sd_data_reg : unsigned(15 downto 0);
+	signal sd_data_reg : std_logic_vector(15 downto 0);
 	signal sd_data_ena : std_logic := '0';
-	signal sd_addr_reg : unsigned((rowAddrBits-1) downto 0);
+	signal sd_addr_reg : std_logic_vector((rowAddrBits-1) downto 0);
 	signal sd_we_n_reg : std_logic;
 	signal sd_ras_n_reg : std_logic;
 	signal sd_cas_n_reg : std_logic;
@@ -254,44 +139,15 @@ architecture rtl of chameleon_sdram is
 	signal sd_ba_1_reg : std_logic;
 	signal sd_ldqm_reg : std_logic;
 	signal sd_udqm_reg : std_logic;
-
-
-
--- ram busy signals
-	signal vid0_ackReg : std_logic := '0';
---	signal vid0BusyReg : std_logic := '0';
-	signal vid1BusyReg : std_logic := '0';
-	signal cpu1541_ack_reg : std_logic := '0';
-
--- ram access scheduler
---	signal vid0_pending : std_logic := '0';
-	signal vid1_pending : std_logic := '0';
-	signal vicvid_pending : std_logic := '0';
-	signal cpu6510_ackLoc : std_logic := '0';
-	signal reu_pending : std_logic := '0';
 --GE
-	signal vdccpu_ackReg : std_logic := '0';
-	signal vdcdma_ackReg : std_logic := '0';
-	signal vdcsp_ackReg : std_logic := '0';
-	signal vdcbg_ackReg : std_logic := '0';
-	signal vdcdmas_ackReg : std_logic := '0';
-	
+	signal vram_ackReg : std_logic := '0';
 	signal romwr_ackReg : std_logic := '0';
 	signal romrd_ackReg : std_logic := '0';
 --GE
-	signal cpu6510_qReg : unsigned(7 downto 0);
-	signal vdccpu_qReg : unsigned(15 downto 0);
-	signal vdcdma_qReg : unsigned(15 downto 0);
-	signal vdcsp_qReg : unsigned(15 downto 0);
-	signal vdcbg_qReg : unsigned(15 downto 0);
-	signal vdcdmas_qReg : unsigned(15 downto 0);
-	signal romwr_qReg : unsigned(15 downto 0);
-	
-	signal romrd_qReg : unsigned(63 downto 0);
+	signal vram_qReg : std_logic_vector(15 downto 0);
+	signal romwr_qReg : std_logic_vector(15 downto 0);
+	signal romrd_qReg : std_logic_vector(63 downto 0);
 	signal initDoneReg : std_logic := '0';
-	
--- RAM buffers
-	signal vicvid_buffer : unsigned(63 downto 0);
 	
 -- Active rows in SDRAM
 	type bankRowDef is array(0 to 3) of row_t;
@@ -306,15 +162,15 @@ architecture rtl of chameleon_sdram is
 
 	signal currentState : ramStates;
 	signal currentPort : ramPorts;
-	signal currentBank : unsigned(1 downto 0);
+	signal currentBank : std_logic_vector(1 downto 0);
 	signal currentRow : row_t;
 	signal currentCol : col_t;
-	signal currentRdData : unsigned(63 downto 0);
-	signal currentWrData : unsigned(63 downto 0);
+	signal currentRdData : std_logic_vector(63 downto 0);
+	signal currentWrData : std_logic_vector(15 downto 0);
 	signal currentLdqm : std_logic;
 	signal currentUdqm : std_logic;
 
-	signal nextRamBank : unsigned(1 downto 0);
+	signal nextRamBank : std_logic_vector(1 downto 0);
 	signal nextRamRow : row_t;
 	signal nextRamCol : col_t;
 	signal nextRamPort : ramPorts;
@@ -322,28 +178,7 @@ architecture rtl of chameleon_sdram is
 	signal nextLdqm : std_logic;
 	signal nextUdqm : std_logic;
 
-	
-	signal hv_a : std_logic_vector(13 downto 0);
-	signal hv_d	: std_logic_vector(15 downto 0);
-	signal hv_q	: std_logic_vector(15 downto 0);
-	signal hv_we : std_logic;
-	
-	signal nextHvState : ramStates;
-	signal nextHvAddr : std_logic_vector(13 downto 0);
-	
-
-constant useCache : boolean := false;
-	
 begin
-
---
---hv : entity work.halfvram port map(
---	address => hv_a,
---	clock => clk,
---	data => hv_d,
---	wren => hv_we,
---	q => hv_q
---);
 
 -- -----------------------------------------------------------------------
 
@@ -381,85 +216,15 @@ begin
 			nextLdqm <= '0';
 			nextUdqm <= '0';
 
-			nextHvState <= RAM_IDLE;
-			nextHvAddr <= (others => '0');
-			
-			if (vdcsp_req /= vdcsp_ackReg) and (currentPort /= PORT_VDCSP) then --GE
-				if useCache and vdcsp_a(1) = '1' and vdcsp_a(16) = '0' then
-					nextHvState <= HV_READ_1;
-					nextHvAddr <= std_logic_vector(vdcsp_a(15 downto 2));
-					nextRamPort <= PORT_VDCSP;
-				else
-					nextRamState <= RAM_READ_1;
-					nextRamPort <= PORT_VDCSP;
-					nextRamBank <= vdcsp_a((colAddrBits+rowAddrBits+2) downto (colAddrBits+rowAddrBits+1));
-					nextRamRow <= vdcsp_a((colAddrBits+rowAddrBits) downto (colAddrBits+1));
-					nextRamCol <= vdcsp_a(colAddrBits downto 1);				
+			if (vram_req /= vram_ackReg) and (currentPort /= PORT_VRAM) then --GE
+				nextRamState <= RAM_READ_1;
+				if vram_we = '1' then
+					nextRamState <= RAM_WRITE_1;
 				end if;
-				
-			elsif (vdcbg_req /= vdcbg_ackReg) and (currentPort /= PORT_VDCBG) then --GE
-				if useCache and vdcbg_a(1) = '1' and vdcbg_a(16) = '0' then
-					nextHvState <= HV_READ_1;
-					nextHvAddr <= std_logic_vector(vdcbg_a(15 downto 2));
-					nextRamPort <= PORT_VDCBG;
-				else
-					nextRamState <= RAM_READ_1;
-					nextRamPort <= PORT_VDCBG;
-					nextRamBank <= vdcbg_a((colAddrBits+rowAddrBits+2) downto (colAddrBits+rowAddrBits+1));
-					nextRamRow <= vdcbg_a((colAddrBits+rowAddrBits) downto (colAddrBits+1));
-					nextRamCol <= vdcbg_a(colAddrBits downto 1);
-				end if;
-				
-			elsif (vdcdmas_req /= vdcdmas_ackReg) and (currentPort /= PORT_VDCDMAS) then --GE
-				if useCache and vdcdmas_a(1) = '1' and vdcdmas_a(16) = '0' then
-					nextHvState <= HV_READ_1;
-					nextHvAddr <= std_logic_vector(vdcdmas_a(15 downto 2));
-					nextRamPort <= PORT_VDCDMAS;
-				else
-					nextRamState <= RAM_READ_1;
-					nextRamPort <= PORT_VDCDMAS;
-					nextRamBank <= vdcdmas_a((colAddrBits+rowAddrBits+2) downto (colAddrBits+rowAddrBits+1));
-					nextRamRow <= vdcdmas_a((colAddrBits+rowAddrBits) downto (colAddrBits+1));
-					nextRamCol <= vdcdmas_a(colAddrBits downto 1);
-				end if;
-				
-			elsif (vdcdma_req /= vdcdma_ackReg) and (currentPort /= PORT_VDCDMA) then --GE
-				if useCache and vdcdma_a(1) = '1' and vdcdma_a(16) = '0' then
-					nextHvState <= HV_READ_1;
-					if vdcdma_we = '1' then
-						nextHvState <= HV_WRITE_1;
-					end if;
-					nextHvAddr <= std_logic_vector(vdcdma_a(15 downto 2));
-					nextRamPort <= PORT_VDCDMA;
-				else
-					nextRamState <= RAM_READ_1;
-					if vdcdma_we = '1' then
-						nextRamState <= RAM_WRITE_1;
-					end if;
-					nextRamPort <= PORT_VDCDMA;
-					nextRamBank <= vdcdma_a((colAddrBits+rowAddrBits+2) downto (colAddrBits+rowAddrBits+1));
-					nextRamRow <= vdcdma_a((colAddrBits+rowAddrBits) downto (colAddrBits+1));
-					nextRamCol <= vdcdma_a(colAddrBits downto 1);
-				end if;
-					
-			elsif (vdccpu_req /= vdccpu_ackReg) and (currentPort /= PORT_VDCCPU) then --GE
-				if useCache and vdccpu_a(1) = '1' and vdccpu_a(16) = '0' then
-					nextHvState <= HV_READ_1;
-					if vdccpu_we = '1' then
-						nextHvState <= HV_WRITE_1;
-					end if;
-					nextHvAddr <= std_logic_vector(vdccpu_a(15 downto 2));
-					nextRamPort <= PORT_VDCCPU;
-				else				
-					nextRamState <= RAM_READ_1;
-					if vdccpu_we = '1' then
-						nextRamState <= RAM_WRITE_1;
-					end if;
-					nextRamPort <= PORT_VDCCPU;
-					nextRamBank <= vdccpu_a((colAddrBits+rowAddrBits+2) downto (colAddrBits+rowAddrBits+1));
-					nextRamRow <= vdccpu_a((colAddrBits+rowAddrBits) downto (colAddrBits+1));
-					nextRamCol <= vdccpu_a(colAddrBits downto 1);
-				end if;
+				nextRamPort <= PORT_VRAM;
+				nextRamBank <= vram_a((colAddrBits+rowAddrBits+2) downto (colAddrBits+rowAddrBits+1));
+				nextRamRow <= vram_a((colAddrBits+rowAddrBits) downto (colAddrBits+1));
+				nextRamCol <= vram_a(colAddrBits downto 1);
 			elsif (romwr_req /= romwr_ackReg) and (currentPort /= PORT_ROMWR) then
 				nextRamState <= RAM_READ_1;
 				if romwr_we = '1' then
@@ -477,77 +242,6 @@ begin
 				nextRamRow <= romrd_a((colAddrBits+rowAddrBits) downto (colAddrBits+1));
 				nextRamCol <= romrd_a(colAddrBits downto 3) & "00";
 				
-			elsif (cpu6510_request /= cpu6510_ackLoc) and (currentPort /= PORT_CPU6510) then
-				nextRamState <= RAM_READ_1;
-				if cpu6510_we = '1' then
-					nextRamState <= RAM_WRITE_1;
-					nextLdqm <= cpu6510_a(0);
-					nextUdqm <= not cpu6510_a(0);
-				end if;
-				nextRamPort <= PORT_CPU6510;
-				nextRamBank <= cpu6510_a((colAddrBits+rowAddrBits+2) downto (colAddrBits+rowAddrBits+1));
-				nextRamRow <= cpu6510_a((colAddrBits+rowAddrBits) downto (colAddrBits+1));
-				nextRamCol <= cpu6510_a(colAddrBits downto 1);
-
-			elsif (cache_req /= cache_ack_reg) and (currentPort /= PORT_CACHE) then
-				nextRamPort <= PORT_CACHE;
-				nextRamBank <= cache_a((colAddrBits+rowAddrBits+2) downto (colAddrBits+rowAddrBits+1));
-				nextRamRow <= cache_a((colAddrBits+rowAddrBits) downto (colAddrBits+1));
-				nextRamCol <= cache_a(colAddrBits downto 1);
-				if cache_burst = '1' then
-					nextRamCol(1 downto 0) <= "00";
-				end if;
-
-				nextRamState <= RAM_READ_1;
-				if cache_we = '1' then
-					nextRamState <= RAM_WRITE_1;
-					if cache_burst = '0' then
-						nextLdqm <= cache_a(0);
-						nextUdqm <= not cache_a(0);
-					end if;
-				end if;
-			elsif reserve = '0' then
-				if reu_pending = '1' then
-					nextRamState <= RAM_READ_1;
-					if reuWe = '1' then
-						nextRamState <= RAM_WRITE_1;
-						nextLdqm <= reuA(0);
-						nextUdqm <= not reuA(0);
-					end if;
-					nextRamPort <= PORT_REU;
-					nextRamBank <= reuA((colAddrBits+rowAddrBits+2) downto (colAddrBits+rowAddrBits+1));
-					nextRamRow <= reuA((colAddrBits+rowAddrBits) downto (colAddrBits+1));
-					nextRamCol <= reuA(colAddrBits downto 1);
-				elsif  (cpu1541_req /= cpu1541_ack_reg) and (currentPort /= PORT_CPU_1541) then
-					nextRamState <= RAM_READ_1;
-					if cpu1541_we = '1' then
-						nextRamState <= RAM_WRITE_1;
-						nextLdqm <= cpu1541_a(0);
-						nextUdqm <= not cpu1541_a(0);
-					end if;
-					nextRamPort <= PORT_CPU_1541;
-					nextRamBank <= cpu1541_a((colAddrBits+rowAddrBits+2) downto (colAddrBits+rowAddrBits+1));
-					nextRamRow <= cpu1541_a((colAddrBits+rowAddrBits) downto (colAddrBits+1));
-					nextRamCol <= cpu1541_a(colAddrBits downto 1);			
-				elsif vicvid_pending = '1' then
-					nextRamState <= RAM_WRITE_1;
-					nextRamPort <= PORT_VICVID;
-					nextRamBank <= vicvid_addr((colAddrBits+rowAddrBits+2) downto (colAddrBits+rowAddrBits+1));
-					nextRamRow <= vicvid_addr((colAddrBits+rowAddrBits) downto (colAddrBits+1));
-					nextRamCol <= vicvid_addr(colAddrBits downto 3) & "00";
-				elsif (vid0_req /= vid0_ackReg) and (currentPort /= PORT_VID0) then
-					nextRamState <= RAM_READ_1;
-					nextRamPort <= PORT_VID0;
-					nextRamBank <= vid0_addr((colAddrBits+rowAddrBits+2) downto (colAddrBits+rowAddrBits+1));
-					nextRamRow <= vid0_addr((colAddrBits+rowAddrBits) downto (colAddrBits+1));
-					nextRamCol <= vid0_addr(colAddrBits downto 3) & "00";
-				elsif vid1_pending = '1' then
-					nextRamState <= RAM_READ_1;
-					nextRamPort <= PORT_VID1;
-					nextRamBank <= vid1_addr((colAddrBits+rowAddrBits+2) downto (colAddrBits+rowAddrBits+1));
-					nextRamRow <= vid1_addr((colAddrBits+rowAddrBits) downto (colAddrBits+1));
-					nextRamCol <= vid1_addr(colAddrBits downto 3) & "00";
-				end if;
 			end if;
 		--end if;		
 	end process;
@@ -574,7 +268,6 @@ begin
 	begin
 		if rising_edge(clk) then
 			refreshSubtract <= '0';
-			ramAlmostDone <= '0';
 			ramDone <= '0';
 			sd_data_ena <= '0';
 			sd_addr_reg <= (others => '0');
@@ -588,8 +281,6 @@ begin
 			sd_ldqm_reg <= '0';
 			sd_udqm_reg <= '0';
 			
-			hv_we <= '0';
-
 			if ramTimer /= 0 then
 				ramTimer <= ramTimer - 1;
 			else
@@ -628,7 +319,7 @@ begin
 					-- Set mode bits of RAM.
 					ramTimer <= 10;
 					ramState <= RAM_IDLE; -- ram is ready for commands after set-mode
-					sd_addr_reg <= resize("000000100010", sd_addr'length); -- CAS2, Burstlength 4 (8 bytes, 64 bits)
+					sd_addr_reg <= std_logic_vector(resize("001000100010", sd_addr'length)); -- CAS2, Burstlength 4 (8 bytes, 64 bits), no burst on writes
 					if casLatency = 3 then
 						sd_addr_reg(6 downto 4) <= "011";
 					end if;
@@ -649,31 +340,19 @@ begin
 						currentUdqm <= nextUdqm;
 						
 						case nextRamPort is
-						when PORT_CACHE =>
-							currentWrData <= cache_d;
-						when PORT_CPU6510 =>
-							currentWrData(15 downto 0) <= cpu6510_d & cpu6510_d;
-						when PORT_REU =>
-							currentWrData(15 downto 0) <= reuD & reuD;
-						when PORT_VICVID =>
-							currentWrData <= vicvid_buffer;
-						when PORT_CPU_1541 =>
-							currentWrData(15 downto 0) <= cpu1541_d & cpu1541_d;
-						when PORT_VDCCPU => --GE
-							currentWrData(15 downto 0) <= vdccpu_d;
-						when PORT_VDCDMA => --GE
-							currentWrData(15 downto 0) <= vdcdma_d;
+						when PORT_VRAM => --GE
+							currentWrData <= vram_d;
 						when PORT_ROMWR =>
-							currentWrData(15 downto 0) <= romwr_d;
+							currentWrData <= romwr_d;
 						when others =>
 							null;
 						end case;
 
 						ramState <= nextRamState;
-						if bankActive(to_integer(nextRamBank)) = '0' then
+						if bankActive(to_integer(unsigned(nextRamBank))) = '0' then
 							-- Current bank not active. Activate a row first
 							ramState <= RAM_ACTIVE;
-						elsif bankRow(to_integer(nextRamBank)) /= nextRamRow then
+						elsif bankRow(to_integer(unsigned(nextRamBank))) /= nextRamRow then
 							-- Wrong row active in bank, do precharge then activate a row.
 							ramState <= RAM_PRECHARGE;
 						end if;
@@ -687,19 +366,6 @@ begin
 						else
 							ramState <= RAM_AUTOREFRESH;
 						end if;
-					elsif nextHvState /= RAM_IDLE then
-						currentState <= nextHvState;
-						currentPort <= nextRamPort;
-						ramState <= nextHvState;
-						hv_a <= nextHvAddr;
-						case nextRamPort is
-						when PORT_VDCCPU => --GE
-							hv_d <= std_logic_vector(vdccpu_d);
-						when PORT_VDCDMA => --GE
-							hv_d <= std_logic_vector(vdcdma_d);
-						when others =>
-							null;
-						end case;
 					end if;
 				when RAM_ACTIVE =>
 					ramTimer <= 2;
@@ -708,12 +374,12 @@ begin
 					sd_ras_n_reg <= '0';
 					sd_ba_0_reg <= currentBank(0);
 					sd_ba_1_reg <= currentBank(1);
-					bankRow(to_integer(currentBank)) <= currentRow;
-					bankActive(to_integer(currentBank)) <= '1';
+					bankRow(to_integer(unsigned(currentBank))) <= currentRow;
+					bankActive(to_integer(unsigned(currentBank))) <= '1';
 				when RAM_READ_1 =>
 					ramTimer <= casLatency + 1;
 					ramState <= RAM_READ_2;
-					sd_addr_reg <= resize(currentCol, sd_addr'length);
+					sd_addr_reg <= std_logic_vector(resize(unsigned(currentCol), sd_addr'length));
 					--GE sd_addr_reg <= resize(currentCol, sd_addr'length) or resize("10000000000", sd_addr'length); --GE Auto precharge
 					sd_cas_n_reg <= '0';
 					sd_ba_0_reg <= currentBank(0);
@@ -722,42 +388,16 @@ begin
 					ramState <= RAM_READ_3;
 					currentRdData(15 downto 0) <= ram_data_reg;
 					case currentPort is
-					when PORT_CPU6510 =>
-						cpu6510_qReg <= ram_data_reg(7 downto 0); --GE
-						if cpu6510_a(0) = '1' then
-							cpu6510_qReg <= ram_data_reg(15 downto 8); --GE
-						end if;
+					when PORT_VRAM => --GE
+						vram_qReg <= ram_data_reg;
 						ramDone <= '1';
-					when PORT_REU =>
-						reuQ <= ram_data_reg(7 downto 0);
-						if reuA(0) = '1' then
-							reuQ <= ram_data_reg(15 downto 8);
-						end if;
-						ramDone <= '1';
-					when PORT_CPU_1541 =>
-						cpu1541_q <= ram_data_reg(7 downto 0);
-						if cpu1541_a(0) = '1' then
-							cpu1541_q <= ram_data_reg(15 downto 8);
-						end if;
-						ramDone <= '1';
-					when PORT_VDCCPU => --GE
-						vdccpu_qReg <= ram_data_reg;
-						ramDone <= '1';
-					when PORT_VDCDMA => --GE
-						vdcdma_qReg <= ram_data_reg;
-						ramDone <= '1';					
-					when PORT_VDCSP => --GE
-						vdcsp_qReg <= ram_data_reg;
-						ramDone <= '1';					
-					when PORT_VDCBG => --GE
-						vdcbg_qReg <= ram_data_reg;
-						ramDone <= '1';					
-					when PORT_VDCDMAS => --GE
-						vdcdmas_qReg <= ram_data_reg;
-						ramDone <= '1';					
+						sd_we_n_reg <= '0'; -- abort burst
+						sd_cas_n_reg <= '1';
+						sd_ras_n_reg <= '1';
+						ramState <= RAM_IDLE;
 					when PORT_ROMWR => --GE
 						romwr_qReg <= ram_data_reg;
-						ramDone <= '1';					
+						ramDone <= '1';
 					when others =>
 						null;
 					end case;
@@ -767,61 +407,33 @@ begin
 				when RAM_READ_4 =>
 					ramState <= RAM_READ_5;
 					currentRdData(47 downto 32) <= ram_data_reg;
-					ramAlmostDone <= '1';
 				when RAM_READ_5 =>
 					currentRdData(63 downto 48) <= ram_data_reg;
 					ramState <= RAM_IDLE;
 -- /!\
 					case currentPort is
-					when PORT_CPU6510 | PORT_REU | PORT_CPU_1541 
-						| PORT_VDCCPU | PORT_VDCDMA | PORT_VDCSP | PORT_VDCBG | PORT_VDCDMAS | PORT_ROMWR => --GE
+					when PORT_VRAM | PORT_ROMWR => --GE
 						null;
 					when others =>
 						ramDone <= '1';
 					end case;
 -- /!\
 				when RAM_WRITE_1 =>
-					ramState <= RAM_WRITE_2;
+					ramState <= RAM_IDLE;
 					sd_data_ena <= '1';
 					sd_we_n_reg <= '0';
 					sd_cas_n_reg <= '0';
 					sd_ba_0_reg <= currentBank(0);
 					sd_ba_1_reg <= currentBank(1);
 
-					sd_addr_reg <= resize(currentCol, sd_addr'length);
+					sd_addr_reg <= std_logic_vector(resize(unsigned(currentCol), sd_addr'length));
 					--GE sd_addr_reg <= resize(currentCol, sd_addr'length) or resize("10000000000", sd_addr'length); --GE Auto precharge
 
-					sd_data_reg <= currentWrData(15 downto 0);
+					sd_data_reg <= currentWrData;
 					sd_ldqm_reg <= currentLdqm;
 					sd_udqm_reg <= currentUdqm;
-					if currentLdqm = '1'
-					or currentUdqm = '1' 
-					or currentPort = PORT_VDCCPU --GE
-					or currentPort = PORT_VDCDMA --GE
-					or currentPort = PORT_ROMWR --GE
-					then
-						-- This is a partial write, abort burst.
-						ramState <= RAM_WRITE_ABORT;
-					end if;
-				when RAM_WRITE_2 =>
-					ramState <= RAM_WRITE_3;
-					sd_data_ena <= '1';
-					sd_data_reg <= currentWrData(31 downto 16);
-				when RAM_WRITE_3 =>
-					ramState <= RAM_WRITE_4;
-					sd_data_ena <= '1';
-					sd_data_reg <= currentWrData(47 downto 32);
-				when RAM_WRITE_4 =>
-					ramState <= RAM_WRITE_DLY;
-					sd_data_ena <= '1';
-					sd_data_reg <= currentWrData(63 downto 48);
-				when RAM_WRITE_ABORT =>
-					ramState <= RAM_WRITE_DLY;
-					sd_we_n_reg <= '0';
-				when RAM_WRITE_DLY =>
-					ramState <= RAM_IDLE;
-					ramAlmostDone <= '1';
 					ramDone <= '1';
+
 				when RAM_PRECHARGE =>
 					ramTimer <= 2;
 					ramState <= RAM_ACTIVE;
@@ -829,7 +441,7 @@ begin
 					sd_ras_n_reg <= '0';				
 					sd_ba_0_reg <= currentBank(0);
 					sd_ba_1_reg <= currentBank(1);
-					bankActive(to_integer(currentBank)) <= '0';
+					bankActive(to_integer(unsigned(currentBank))) <= '0';
 				when RAM_PRECHARGE_ALL =>
 					ramTimer <= 2;
 					ramState <= RAM_IDLE;
@@ -847,41 +459,6 @@ begin
 					sd_we_n_reg <= '1';
 					sd_ras_n_reg <= '0';
 					sd_cas_n_reg <= '0';
-
-				when HV_WRITE_1 =>
-					hv_we <= '1';
-					ramState <= HV_WRITE_2;
-				when HV_WRITE_2 =>
-					ramDone <= '1';
-					ramState <= RAM_IDLE;
-				
-				when HV_READ_1 =>
-					ramState <= HV_READ_2;
-				when HV_READ_2 =>
-					ramState <= HV_READ_3;
-				when HV_READ_3 =>
-					-- ramDone <= '1';
-					ramState <= RAM_IDLE;
-					case currentPort is
-					when PORT_VDCCPU => --GE
-						vdccpu_qReg <= unsigned(hv_q);
-						ramDone <= '1';
-					when PORT_VDCDMA => --GE
-						vdcdma_qReg <= unsigned(hv_q);
-						ramDone <= '1';					
-					when PORT_VDCSP => --GE
-						vdcsp_qReg <= unsigned(hv_q);
-						ramDone <= '1';					
-					when PORT_VDCBG => --GE
-						vdcbg_qReg <= unsigned(hv_q);
-						ramDone <= '1';					
-					when PORT_VDCDMAS => --GE
-						vdcdmas_qReg <= unsigned(hv_q);
-						ramDone <= '1';					
-					when others =>
-						null;
-					end case;
-					
 				end case;
 			end if;
 		end if;
@@ -892,184 +469,20 @@ begin
 	debugIdle <= '1' when ((refreshActive = '0') and (ramState = RAM_IDLE)) else '0';
 	debugRefresh <= refreshActive;
 
--- -----------------------------------------------------------------------
--- cache port
-	process(clk)
-	begin
-		if rising_edge(clk) then
-			if currentPort = PORT_CACHE
-			and ramDone = '1' then
-				cache_ack_reg <= cache_req;
-				cache_q <= currentRdData;
-			end if;
-		end if;
-	end process;
-	cache_ack <= cache_ack_reg;
-
--- -----------------------------------------------------------------------
--- vid0 port
-	process(clk)
-	begin
-		if rising_edge(clk) then
-			if currentPort = PORT_VID0
-			and ramDone = '1' then
-				vid0_ackReg <= not vid0_ackReg;
-				vid0_do <= currentRdData;
-			end if;
-		end if;
-	end process;
-	vid0_ack <= vid0_ackReg;
-
--- -----------------------------------------------------------------------
--- vid1 port
-	process(clk)
-	begin
-		if rising_edge(clk) then
-			if currentPort = PORT_VID1
-			and ramAlmostDone = '1' then
-				vid1_pending <= '0';
-			end if;
-			if currentPort = PORT_VID1
-			and ramDone = '1' then
-				vid1_do <= currentRdData;
-				vid1BusyReg <= '0';
-			end if;
-			if vid1_rdStrobe = '1' then
-				vid1_pending <= '1';
-				vid1BusyReg <= '1';
-			end if;
-		end if;
-	end process;
-	vid1_busy <= vid1BusyReg or vid1_rdStrobe;
-
--- -----------------------------------------------------------------------
--- vicvid port
-	process(clk)
-	begin
-		if rising_edge(clk) then
-			if vicvid_wrStrobe = '1' then
-				vicvid_buffer <= vicvid_di;
-				vicvid_pending <= '1';
-			end if;
-			if currentPort = PORT_VICVID
-			and ramDone = '1' then
-				vicvid_pending <= '0';
-			end if;
-		end if;
-	end process;
-	vicvid_busy <= vicvid_pending or vicvid_wrStrobe;
-
--- -----------------------------------------------------------------------
--- cpu0 port
-	process(clk)
-	begin
-		if rising_edge(clk) then
-			if currentPort = PORT_CPU6510
-			and ramDone = '1' then
-				cpu6510_ackLoc <= not cpu6510_ackLoc;
-			end if;
-		end if;
-	end process;
-	cpu6510_ack <= cpu6510_ackLoc;
-	cpu6510_q <= cpu6510_qReg; --GE
-	
--- -----------------------------------------------------------------------
--- REU port
-	process(clk)
-	begin
-		if rising_edge(clk) then
-			if currentPort = PORT_REU
-			and ramDone = '1' then
-				reu_pending <= '0';
-			end if;
-			if reuStrobe = '1' then
-				reu_pending <= '1';
-			end if;
-		end if;
-	end process;
-	reuBusy <= reu_pending or reuStrobe;
-
--- -----------------------------------------------------------------------
--- 1541 drive cpu port
-	process(clk)
-	begin
-		if rising_edge(clk) then
-			if currentPort = PORT_CPU_1541
-			and ramDone = '1' then
-				cpu1541_ack_reg <= cpu1541_req;
-			end if;
-		end if;
-	end process;
-	cpu1541_ack <= cpu1541_ack_reg;
-
-	
 --GE -----------------------------------------------------------------------
 --GE PCE VDC port
 	process(clk)
 	begin
 		if rising_edge(clk) then
-			if currentPort = PORT_VDCCPU
+			if currentPort = PORT_VRAM
 			and ramDone = '1' then
-				vdccpu_ackReg <= not vdccpu_ackReg;
+				vram_ackReg <= not vram_ackReg;
 			end if;
 		end if;
 	end process;
-	vdccpu_ack <= vdccpu_ackReg;
-	vdccpu_q <= vdccpu_qReg; --GE
+	vram_ack <= vram_ackReg;
+	vram_q <= vram_qReg; --GE
 
-	
-	process(clk)
-	begin
-		if rising_edge(clk) then
-			if currentPort = PORT_VDCDMA
-			and ramDone = '1' then
-				vdcdma_ackReg <= not vdcdma_ackReg;
-			end if;
-		end if;
-	end process;
-	vdcdma_ack <= vdcdma_ackReg;
-	vdcdma_q <= vdcdma_qReg; --GE
-
-	process(clk)
-	begin
-		if rising_edge(clk) then
-			if currentPort = PORT_VDCSP
-			and ramDone = '1' then
-				vdcsp_ackReg <= not vdcsp_ackReg;
-			end if;
-		end if;
-	end process;
-	vdcsp_ack <= vdcsp_ackReg;
-	vdcsp_q <= vdcsp_qReg; --GE
-	
-	process(clk)
-	begin
-		if rising_edge(clk) then
-			if currentPort = PORT_VDCBG
-			and ramDone = '1' then
-				vdcbg_ackReg <= not vdcbg_ackReg;
-			end if;
-		end if;
-	end process;
-	vdcbg_ack <= vdcbg_ackReg;
-	vdcbg_q <= vdcbg_qReg; --GE
-	
-	process(clk)
-	begin
-		if rising_edge(clk) then
-			if currentPort = PORT_VDCDMAS
-			and ramDone = '1' then
-				vdcdmas_ackReg <= not vdcdmas_ackReg;
-			end if;
-		end if;
-	end process;
-	vdcdmas_ack <= vdcdmas_ackReg;
-	vdcdmas_q <= vdcdmas_qReg; --GE
-
-
-	
-	
-	
 	process(clk)
 	begin
 		if rising_edge(clk) then
