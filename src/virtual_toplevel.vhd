@@ -67,10 +67,7 @@ signal GPIO_CLKCNT	: unsigned(15 downto 0);
 
 signal GPIO_SEL		: std_logic;
 
-signal HEXVALUE		: std_logic_vector(15 downto 0);
-
 signal PRE_RESET_N	: std_logic;
-signal RSTCNT		: std_logic_vector(15 downto 0);
 signal ROM_RESET_N	: std_logic := '0';
 signal RESET_N		: std_logic := '0';
 
@@ -131,11 +128,7 @@ signal VRAM_ACK	: std_logic;
 signal SDR_INIT_DONE	: std_logic;
 
 type bootStates is (BOOT_READ_1, BOOT_WRITE_1, BOOT_WRITE_2, BOOT_DONE);
-signal bootState : bootStates := BOOT_READ_1;
-signal bootTimer : integer range 0 to 32767;
-
-signal boot_a		: std_logic_vector(21 downto 0);
-signal boot_oe_n	: std_logic;
+signal bootState : bootStates := BOOT_DONE;
 
 signal romwr_req : std_logic := '0';
 signal romwr_ack : std_logic;
@@ -164,9 +157,6 @@ signal multitap : std_logic;
 signal prev_sel : std_logic;
 
 begin
-
--- Reset
-PRE_RESET_N <= reset and SDR_INIT_DONE and ext_reset_n;
 
 -- Bit flipping switch
 BITFLIP <= ext_sw(2);
@@ -463,7 +453,9 @@ end process;
 
 FL_DQ<=ext_data;
 
-ROM_RESET_N <= ext_bootdone and ext_reset_n;
+-- Reset
+PRE_RESET_N <= ext_reset_n;
+ROM_RESET_N <= ext_bootdone and ext_reset_n and reset and SDR_INIT_DONE;
 
 process( SDR_CLK )
 begin
