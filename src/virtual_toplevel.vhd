@@ -142,6 +142,8 @@ signal romrd_q : std_logic_vector(63 downto 0);
 signal romrd_a_cached : std_logic_vector(addrwidth downto 3);
 signal romrd_q_cached : std_logic_vector(63 downto 0);
 signal rommap : std_logic_vector(1 downto 0);
+signal romhdr : std_logic;
+signal romrd_a_adj  : std_logic_vector(addrwidth downto 3);
 
 signal FL_DQ : std_logic_vector(15 downto 0);
 
@@ -265,7 +267,8 @@ VDC : entity work.huc6270 port map(
 	VS_N		=> VS
 
 );
--- VDC_RAM_A_FULL <= "00" & "1000" & VDC_RAM_A;
+
+romrd_a_adj <= romrd_a when romhdr = '0' else std_logic_vector(unsigned(romrd_a) + 64);
 
 	sdr : entity work.chameleon_sdram
 		generic map (
@@ -309,7 +312,7 @@ VDC : entity work.huc6270 port map(
 
 			romrd_req => romrd_req,
 			romrd_ack => romrd_ack,
-			romrd_a => romrd_a,
+			romrd_a => romrd_a_adj,
 			romrd_q => romrd_q,
 
 			initDone => SDR_INIT_DONE,
@@ -464,6 +467,7 @@ begin
 				
 			ext_data_req <='0';
 			rommap <= "00";
+			romhdr <= '0';
 			
 			romwr_req <= '0';
 			romwr_a <= to_unsigned(0, addrwidth);
@@ -486,6 +490,9 @@ begin
 						when others =>
 							rommap <= "00";
 						end case;
+						if romwr_a(9) = '1' then
+							romhdr <= '1';
+						end if;
 						ext_data_req<='0';
 						bootState <= BOOT_DONE;
 					end if;
