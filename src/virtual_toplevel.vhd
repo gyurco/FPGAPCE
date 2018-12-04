@@ -160,7 +160,7 @@ signal ROM_RDY	: std_logic;
 signal ROM_DO	: std_logic_vector(7 downto 0);
 
 signal gamepad_port : unsigned(2 downto 0);
-signal multitap : std_logic :='1';
+signal multitap : std_logic;
 signal prev_sel : std_logic;
 
 begin
@@ -230,11 +230,13 @@ VCE : entity work.huc6260 port map(
 	RD_N		=> CPU_RD_N,
 	DI			=> CPU_DO,
 	DO 			=> VCE_DO,
-		
+
+	RVBL		=> '0',
+
 	-- VDC Interface
 	COLNO		=> VDC_COLNO,
 	CLKEN		=> VDC_CLKEN,
-		
+
 	-- NTSC/RGB Video Output
 	R			=> R,
 	G			=> G,

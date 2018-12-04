@@ -9,26 +9,34 @@ use STD.TEXTIO.ALL;
 entity huc6260 is
 	port (
 		CLK 		: in std_logic;
-		RESET_N		: in std_logic;
+		RESET_N	: in std_logic;
+		HSIZE		: out std_logic_vector(9 downto 0);
+		HSTART	: out std_logic_vector(9 downto 0);
 
 		-- CPU Interface
 		A			: in std_logic_vector(2 downto 0);
 		CE_N		: in std_logic;
 		WR_N		: in std_logic;
-		RD_N		: in std_logic;		
+		RD_N		: in std_logic;
 		DI			: in std_logic_vector(7 downto 0);
-		DO 			: out std_logic_vector(7 downto 0);
-		
+		DO 		: out std_logic_vector(7 downto 0);
+
 		-- VDC Interface
 		COLNO		: in std_logic_vector(8 downto 0);
 		CLKEN		: out std_logic;
-		
+		CLKEN_FS	: out std_logic;
+		RVBL		: in std_logic;
+
 		-- NTSC/RGB Video Output
 		R			: out std_logic_vector(2 downto 0);
 		G			: out std_logic_vector(2 downto 0);
-		B			: out std_logic_vector(2 downto 0);		
+		B			: out std_logic_vector(2 downto 0);
+		BW			: out std_logic;
+
 		VS_N		: out std_logic;
-		HS_N		: out std_logic
+		HS_N		: out std_logic;
+		HBL		: out std_logic;
+		VBL		: out std_logic
 	);
 end huc6260;
 
@@ -39,12 +47,11 @@ signal PREV_A	: std_logic_vector(2 downto 0);
 
 type ctrl_t is ( CTRL_IDLE, CTRL_WAIT, CTRL_INCR );
 signal CTRL		: ctrl_t;
-signal DO_FF	: std_logic_vector(7 downto 0);
 signal CR		: std_logic_vector(7 downto 0);
 
 -- VCE Registers
-signal BW		: std_logic;
 signal DOTCLOCK	: std_logic_vector(1 downto 0);
+signal DOTCLOCK_FS: std_logic_vector(1 downto 0);
 
 -- CPU Color RAM Interface
 signal RAM_A	: std_logic_vector(8 downto 0);
@@ -54,57 +61,58 @@ signal RAM_DO	: std_logic_vector(8 downto 0);
 
 -- Color RAM Output
 signal COLOR	: std_logic_vector(8 downto 0);
--- Color RAM Output - after blanking
-signal COLOR_BL	: std_logic_vector(8 downto 0);
-signal BL_N		: std_logic;
 
--- NTSC/RGB Video Output
-signal R_FF			: std_logic_vector(2 downto 0);
-signal G_FF			: std_logic_vector(2 downto 0);
-signal B_FF			: std_logic_vector(2 downto 0);
-signal VS_N_FF		: std_logic;
-signal HS_N_FF		: std_logic;
+-- Video Counting. All horizontal constants should be divisible by 24! (LCM of 4, 6 and 8)
+constant LEFT_BL_CLOCKS	: integer := 432;
+constant DISP_CLOCKS	   : integer := 2160;
+constant LINE_CLOCKS	   : integer := 2736;
+constant HS_CLOCKS		: integer := 192;
 
--- Video Counting
-constant VGA_LINE_CLOCKS	: integer := 1364;
-constant VGA_HS_CLOCKS		: integer := 162-40;	-- (3.77us * 21.477MHz * 2) http://www.epanorama.net/documents/pc/vga_timing.html
-constant VGA_LEFT_BL_CLOCKS	: integer := 243;---60;	-- ((3.77+1.89)us * 21.477MHz * 2) http://www.epanorama.net/documents/pc/vga_timing.html
-constant VGA_DISP_CLOCKS	: integer := 1081;	-- (25.17us * 21.477MHz * 2) http://www.epanorama.net/documents/pc/vga_timing.html
+constant TOTAL_LINES		: integer := 263;  -- 525
+constant VS_LINES			: integer := 3; 	 -- pcetech.txt
+constant TOP_BL_LINES_E	: integer := 19;   -- pcetech.txt (must include VS_LINES in current implementation)
+constant DISP_LINES_E	: integer := 242;	 -- same as in mednafen
+signal TOP_BL_LINES		: integer;
+signal DISP_LINES			: integer;
 
-constant HS_CLOCKS			: integer := 202;	-- (4.7us * 21.477MHz * 2) http://www.epanorama.net/documents/video/video_timing.html
+constant HSIZE0 : std_logic_vector(9 downto 0) := std_logic_vector(to_unsigned(DISP_CLOCKS/8,10));
+constant HSIZE1 : std_logic_vector(9 downto 0) := std_logic_vector(to_unsigned(DISP_CLOCKS/6,10));
+constant HSIZE2 : std_logic_vector(9 downto 0) := std_logic_vector(to_unsigned(DISP_CLOCKS/4,10));
 
-constant VGA_VS_LINES		: integer := 2;		-- http://www.epanorama.net/documents/pc/vga_timing.html
+constant HSTART0 : std_logic_vector(9 downto 0) := std_logic_vector(to_unsigned(LEFT_BL_CLOCKS/8,10));
+constant HSTART1 : std_logic_vector(9 downto 0) := std_logic_vector(to_unsigned(LEFT_BL_CLOCKS/6,10));
+constant HSTART2 : std_logic_vector(9 downto 0) := std_logic_vector(to_unsigned(LEFT_BL_CLOCKS/4,10));
 
-constant VS_LINES			: integer := 3*2; 	-- pcetech.txt
-constant TOP_BL_LINES		: integer := 14*2;	-- pcetech.txt
-constant DISP_LINES			: integer := 242*2;	-- pcetech.txt
-constant TOTAL_LINES		: integer := 526; -- 525
+signal H_CNT	: std_logic_vector(11 downto 0);
+signal V_CNT	: std_logic_vector(9 downto 0);
 
-signal H_CNT		: std_logic_vector(10 downto 0);
-signal VGA_H_CNT	: std_logic_vector(10 downto 0);
-signal VGA_V_CNT	: std_logic_vector(9 downto 0);
+signal HBL_FF, HBL_FF2	: std_logic;
+signal VBL_FF, VBL_FF2	: std_logic;
 
 -- Clock generation
-signal CLKEN_FF		: std_logic;
 signal CLKEN_CNT	: std_logic_vector(2 downto 0);
+signal CLKEN_FS_CNT: std_logic_vector(2 downto 0);
+signal CLKEN_FF	: std_logic;
 
 begin
 
+TOP_BL_LINES <= TOP_BL_LINES_E when RVBL = '1' else TOP_BL_LINES_E+3;
+DISP_LINES   <= DISP_LINES_E   when RVBL = '1' else DISP_LINES_E-10;
+
 -- Color RAM
 ram : entity work.colram port map(
-	clock		=> CLK,
-	
+	clock			=> CLK,
+
 	address_a	=> RAM_A,
 	data_a		=> RAM_DI,
 	wren_a		=> RAM_WE,
 	q_a			=> RAM_DO,
 	
 	address_b	=> COLNO,
-	data_b		=> "000000000",
+	data_b		=> (others=>'0'),
 	wren_b		=> '0',
 	q_b			=> COLOR
 );
--- COLOR <= H_CNT(6 downto 4) & VGA_V_CNT(6 downto 4) & H_CNT(8 downto 6);
 
 process( CLK )
 begin
@@ -147,12 +155,12 @@ begin
 					-- CPU Read
 					PREV_A <= A;
 					CTRL <= CTRL_WAIT;
-					DO_FF <= x"FF";
+					DO <= x"FF";
 					case A is
 					when "100" =>
-						DO_FF <= RAM_DO(7 downto 0);
+						DO <= RAM_DO(7 downto 0);
 					when "101" =>
-						DO_FF <= "1111111" & RAM_DO(8);
+						DO <= "1111111" & RAM_DO(8);
 						CTRL <= CTRL_INCR;
 					when others => null;
 					end case;
@@ -186,149 +194,104 @@ end process;
 process( CLK )
 begin
 	if rising_edge( CLK ) then
-		if RESET_N = '0' then
-			H_CNT <= (others => '0');
-			VGA_H_CNT <= (others => '0');
-			VGA_V_CNT <= (others => '0');
-			
-			BW <= '0';
-			-- DOTCLOCK <= "11";
-			DOTCLOCK <= "00";
-			
-			CLKEN_FF <= '0';
+		H_CNT <= H_CNT + 1;
+
+		CLKEN_FF <= '0';
+		CLKEN_CNT <= CLKEN_CNT + 1;
+		if DOTCLOCK = "00" and CLKEN_CNT = "111" then
 			CLKEN_CNT <= (others => '0');
-		else
-			VGA_H_CNT <= VGA_H_CNT + 1;
-			
-			CLKEN_FF <= '0';
-			CLKEN_CNT <= CLKEN_CNT + 1;
-			if DOTCLOCK = "00" and CLKEN_CNT = "111" then
-				CLKEN_CNT <= (others => '0');
-				CLKEN_FF <= '1';
-			elsif DOTCLOCK = "01" and CLKEN_CNT = "101" then
-				CLKEN_CNT <= (others => '0');
-				CLKEN_FF <= '1';				
-			elsif (DOTCLOCK = "10" or DOTCLOCK = "11") and CLKEN_CNT = "011" then
-				CLKEN_CNT <= (others => '0');
-				CLKEN_FF <= '1';				
+			CLKEN_FF <= '1';
+		elsif DOTCLOCK = "01" and CLKEN_CNT = "101" then
+			CLKEN_CNT <= (others => '0');
+			CLKEN_FF <= '1';				
+		elsif DOTCLOCK(1) = '1' and CLKEN_CNT = "011" then
+			CLKEN_CNT <= (others => '0');
+			CLKEN_FF <= '1';				
+		end if;
+
+		if H_CNT = LINE_CLOCKS-1 then
+			CLKEN_CNT <= (others => '0');
+			CLKEN_FF <= '1';				
+			H_CNT <= (others => '0');
+			V_CNT <= V_CNT + 1;
+			if V_CNT = TOTAL_LINES-1 then
+				V_CNT <= (others => '0');
 			end if;
-			
-			if VGA_H_CNT = VGA_LINE_CLOCKS-1 then
-				VGA_H_CNT <= (others => '0');
-				VGA_V_CNT <= VGA_V_CNT + 1;
-				if VGA_V_CNT = TOTAL_LINES-1 then
-					VGA_V_CNT <= (others => '0');
-					-- Reload registers
-					BW <= CR(7);
-					DOTCLOCK <= CR(1 downto 0);
-				end if;
-			end if;
-			if VGA_H_CNT(0) = '1' then
-				H_CNT <= H_CNT + 1;
-				if H_CNT = VGA_LINE_CLOCKS-1 then
-					H_CNT <= (others => '0');
-					CLKEN_CNT <= (others => '0');
-				end if;				
-			end if;
+			-- Reload registers
+			BW <= CR(7);
+			DOTCLOCK <= CR(1 downto 0);
 		end if;
 	end if;
 end process;
 
--- Horizontal Sync
 process( CLK )
 begin
 	if rising_edge( CLK ) then
-		if RESET_N = '0' then
-			HS_N_FF <= '0';
-		else
-			if H_CNT = 0 then
-				HS_N_FF <= '0';
-			end if;
-			if H_CNT = HS_CLOCKS-1 then
-				HS_N_FF <= '1';
-			end if;
+		CLKEN_FS <= '0';
+		CLKEN_FS_CNT <= CLKEN_FS_CNT + 1;
+		if DOTCLOCK_FS = "00" and CLKEN_FS_CNT = "111" then
+			CLKEN_FS_CNT <= (others => '0');
+			CLKEN_FS <= '1';
+		elsif DOTCLOCK_FS = "01" and CLKEN_FS_CNT = "101" then
+			CLKEN_FS_CNT <= (others => '0');
+			CLKEN_FS <= '1';				
+		elsif DOTCLOCK_FS(1) = '1' and CLKEN_FS_CNT = "011" then
+			CLKEN_FS_CNT <= (others => '0');
+			CLKEN_FS <= '1';				
+		end if;
+
+		if H_CNT = LEFT_BL_CLOCKS and V_CNT = TOP_BL_LINES then
+			CLKEN_FS_CNT <= (others => '0');
+			CLKEN_FS <= '1';				
+			DOTCLOCK_FS <= CR(1 downto 0);
 		end if;
 	end if;
 end process;
 
--- Vertical Sync
+-- Sync
 process( CLK )
 begin
 	if rising_edge( CLK ) then
-		if RESET_N = '0' then
-			VS_N_FF <= '0';
-		else
-			if VGA_V_CNT = 0 then
-				VS_N_FF <= '0';
-			end if;
-			if VGA_V_CNT = VS_LINES-1 then
-				VS_N_FF <= '1';
-			end if;
-		end if;
+		if H_CNT = 0           then HS_N <= '0'; end if;
+		if H_CNT = HS_CLOCKS-1 then HS_N <= '1'; end if;
+		if V_CNT = 0           then VS_N <= '0'; end if;
+		if V_CNT = VS_LINES-1  then VS_N <= '1'; end if;
 	end if;
 end process;
 
--- Blanking
--- It is performed "at the source" by clearing the input of the scanline RAMs
--- Based on VGA blanking periods
+-- Blank
 process( CLK )
 begin
 	if rising_edge( CLK ) then
-		if RESET_N = '0' then
-			COLOR_BL <= (others => '0');
-			BL_N <= '0';
-		else
-			if H_CNT >= VGA_LEFT_BL_CLOCKS 
-			and H_CNT < VGA_LEFT_BL_CLOCKS + VGA_DISP_CLOCKS 
-			and VGA_V_CNT >= VS_LINES + TOP_BL_LINES
-			and VGA_V_CNT < VS_LINES + TOP_BL_LINES + DISP_LINES
-			then
-				COLOR_BL <= COLOR;
-				BL_N <= '1';
-			else
-				COLOR_BL <= (others => '0');
-				BL_N <= '0';
-			end if;
-		end if;
+		if H_CNT = LEFT_BL_CLOCKS               then HBL_FF <= '0'; end if;
+		if H_CNT = LEFT_BL_CLOCKS + DISP_CLOCKS then HBL_FF <= '1'; end if;
+		if V_CNT = TOP_BL_LINES                 then VBL_FF <= '0'; end if;
+		if V_CNT = TOP_BL_LINES + DISP_LINES    then VBL_FF <= '1'; end if;
 	end if;
 end process;
-G_FF <= COLOR_BL(8 downto 6);
-R_FF <= COLOR_BL(5 downto 3);
-B_FF <= COLOR_BL(2 downto 0);
 
--- Outputs
-DO <= DO_FF;
-
-R <= R_FF;
-G <= G_FF;
-B <= B_FF;
-VS_N <= VS_N_FF;
-HS_N <= HS_N_FF;
-
-CLKEN <= CLKEN_FF;
-
-----------------------------------------------------------------
--- Video debug
-----------------------------------------------------------------
--- synthesis translate_off
-process( CLKEN_FF )
-	file F		: text open write_mode is "video.txt";
-	variable L	: line;
-	variable R	: std_logic_vector(2 downto 0);
-	variable G	: std_logic_vector(2 downto 0);
-	variable B	: std_logic_vector(2 downto 0);
+-- Final output
+process( CLK )
 begin
-	if rising_edge( CLKEN_FF ) then
-		if VS_N_FF = '0' then
-			write(L, string'("#VS"));
-		elsif HS_N_FF = '0' then
-			write(L, string'("#HS"));
-		else
-			hwrite(L, R_FF & '0' & G_FF & '0' & B_FF & '0');
+	if rising_edge( CLK ) then
+		if CLKEN_FF = '1' then
+
+			-- compensate HUC6202 delay
+			VBL_FF2 <= VBL_FF;
+			HBL_FF2 <= HBL_FF;
+
+			VBL <= VBL_FF2;
+			HBL <= HBL_FF2;
+
+			G <= COLOR(8 downto 6);
+			R <= COLOR(5 downto 3);
+			B <= COLOR(2 downto 0);
 		end if;
-		writeline(F,L);
 	end if;
 end process;
--- synthesis translate_on
+
+CLKEN  <= CLKEN_FF;
+HSIZE  <= HSIZE0  when DOTCLOCK = "00" else HSIZE1  when DOTCLOCK = "01" else HSIZE2;
+HSTART <= HSTART0 when DOTCLOCK = "00" else HSTART1 when DOTCLOCK = "01" else HSTART2;
 
 end rtl;
