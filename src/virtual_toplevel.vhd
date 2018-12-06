@@ -84,7 +84,6 @@ signal CPU_HSM		: std_logic;
 
 signal CPU_CLKOUT	: std_logic;
 signal CPU_CLKEN	: std_logic;
-signal CPU_CLKRST	: std_logic;
 signal CPU_RDY		: std_logic;
 
 signal CPU_VCE_SEL_N	: std_logic;
@@ -186,10 +185,8 @@ CPU : entity work.huc6280 port map(
 	WR_N 	=> CPU_WR_N,
 	RD_N	=> CPU_RD_N,
 	
-	CLKOUT	=> CPU_CLKOUT,
-	CLKRST	=> CPU_CLKRST,
+	CLKEN	=> CPU_CLKOUT,
 	RDY		=> CPU_RDY,
-	ROM_RDY	=> ROM_RDY,
 	
 	CEK_N	=> CPU_VCE_SEL_N,
 	CE7_N	=> CPU_VDC_SEL_N,
@@ -198,8 +195,8 @@ CPU : entity work.huc6280 port map(
 	K		=> CPU_IO_DI,
 	O		=> CPU_IO_DO,
 	
-	DAC_LDATA => DAC_LDATA,
-	DAC_RDATA => DAC_RDATA
+	AUD_LDATA => DAC_LDATA,
+	AUD_RDATA => DAC_RDATA
 );
 
 -- RAM
@@ -240,7 +237,6 @@ VCE : entity work.huc6260 port map(
 
 VDC : entity work.huc6270 port map(
 	CLK 		=> CLK,
---	SDR_CLK		=> SDR_CLK,
 	RESET_N		=> RESET_N,
 
 	-- CPU Interface
@@ -335,7 +331,7 @@ CPU_DI <= RAM_DO when CPU_RD_N = '0' and CPU_RAM_SEL_N = '0'
 	else ROM_DO when CPU_RD_N = '0' and CPU_A(20) = '0'
 	else VCE_DO when CPU_RD_N = '0' and CPU_VCE_SEL_N = '0'
 	else VDC_DO when CPU_RD_N = '0' and CPU_VDC_SEL_N = '0'
-	else "ZZZZZZZZ";
+	else x"FF";
 
 process( CLK )
 begin
@@ -343,25 +339,16 @@ begin
 		if ROM_RESET_N = '0' then
 			RESET_N <= '0';
 			romrd_req <= '0';
-			romrd_a_cached <= (others => '0');
+			romrd_a_cached <= (others => '1');
 			romrd_q_cached <= (others => '0');
-			ROM_RDY <= '0';
-			CPU_A_PREV <= (others => '0');
-		elsif ROM_RESET_N = '1' and RESET_N = '0' then
-			if CPU_CLKRST = '1' then
-				romrd_req <= not romrd_req;
-				romrd_a<=(others=>'0');
-				romrd_a(19 downto 3) <= CPU_A(19 downto 3);
-				romrd_a_cached<=(others=>'0');
-				romrd_a_cached(19 downto 3) <= CPU_A(19 downto 3);
-				ROM_RDY <= '0';
-				romState <= ROM_READ;				
-				RESET_N <= '1';
-			end if;
+			ROM_RDY <= '1';
+			CPU_A_PREV <= (others => '1');
+			romState <= ROM_IDLE;
 		else
+			RESET_N <= '1';
 			case romState is
 			when ROM_IDLE =>
-				if CPU_CLKOUT = '1' then
+				--if CPU_CLKOUT = '1' then
 					if CPU_RD_N = '0' or CPU_WR_N = '0' then
 						CPU_A_PREV <= CPU_A;
 					else 
@@ -419,7 +406,7 @@ begin
 							romState <= ROM_READ;
 						end if;
 					end if;
-				end if;
+				--end if;
 			when ROM_READ =>
 				if romrd_req = romrd_ack then
 					ROM_RDY <= '1';

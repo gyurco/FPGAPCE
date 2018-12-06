@@ -147,6 +147,7 @@ architecture fast of cpu65xx is
 	signal irq1Reg : std_logic; --GE HuC6280
 	signal irq2Reg : std_logic; -- Delay IRQ input with one clock cycle.
 	signal tiqReg : std_logic;  --GE HuC6280
+	--signal irqAdd : unsigned(3 downto 0);
 	signal soReg : std_logic; -- SO pin edge detection
 
 -- Opcode decoding
@@ -1002,9 +1003,23 @@ processAlu: process(clk, opcInfo, aluInput, aluCmpInput, A, U, irqActive, N, V, 
 
 		if (opcInfo(aluMode1From to aluMode1To) = aluModeFlg) then
 			varZ := rmwBits(1);
+--		elsif (opcInfo(aluMode1From to aluMode1To) = aluModeTrb)	--GE Mednafen/ArchaicPixels.com and TGEmu/Hu-GO!
+--		or (opcInfo(aluMode1From to aluMode1To) = aluModeTsb) then	--GE hold different information about Z flag handling in this case
+--			if (aluInput and Acc) = x"00" then
+--				varZ := '1';
+--			else
+--				varZ := '0';
+--			end if;
 		elsif (opcInfo(aluMode1From to aluMode1To) = aluModeTrb)	--GE Mednafen/ArchaicPixels.com and TGEmu/Hu-GO!
-		or (opcInfo(aluMode1From to aluMode1To) = aluModeTsb) then	--GE hold different information about Z flag handling in this case
-			if (aluInput and Acc) = x"00" then
+		 then	--GE hold different information about Z flag handling in this case
+			if (aluInput and not Acc) = x"00" then
+				varZ := '1';
+			else
+				varZ := '0';
+			end if;
+		elsif (opcInfo(aluMode1From to aluMode1To) = aluModeTsb) --GE Mednafen/ArchaicPixels.com and TGEmu/Hu-GO!
+		  then	--GE hold different information about Z flag handling in this case
+			if (aluInput or Acc) = x"00" then
 				varZ := '1';
 			else
 				varZ := '0';
@@ -1033,6 +1048,9 @@ processAlu: process(clk, opcInfo, aluInput, aluCmpInput, A, U, irqActive, N, V, 
 		if (opcInfo(aluMode1From to aluMode1To) = aluModeBit)
 		or (opcInfo(aluMode1From to aluMode1To) = aluModeFlg) then
 			varN := rmwBits(7);
+		elsif (opcInfo(aluMode1From to aluMode1To) = aluModeTrb)
+		or (opcInfo(aluMode1From to aluMode1To) = aluModeTsb) then
+			varN := aluInput(7);
 		else
 			varN := nineBits(7);
 		end if;
@@ -1078,6 +1096,10 @@ processAlu: process(clk, opcInfo, aluInput, aluCmpInput, A, U, irqActive, N, V, 
 					varC := '0';
 				end if;
 			end if;
+		when aluModeTsb =>
+			varV := aluInput(6);
+		when aluModeTrb =>
+			varV := aluInput(6);
 		when others =>
 			null;
 		end case;
@@ -1126,6 +1148,7 @@ processAlu: process(clk, opcInfo, aluInput, aluCmpInput, A, U, irqActive, N, V, 
 	end process;
 
 calcInterrupt: process(clk)
+		--variable processIrqV : std_logic;
 	begin
 		if rising_edge(clk) then
 			if enable = '1' then
@@ -1150,7 +1173,21 @@ calcInterrupt: process(clk)
 				--GE HuC6280 - Here, the highest priority IRQ will be handled, masking the others until it has been processed,
 				--GE provided that the corresponding inputs are still held low when it happens.
 				--GE Not sure *at all* about this behaviour...
-				processIrq <= not ((nmiReg and ((irq1Reg and irq2Reg and tiqReg) or I)) or opcInfo(opcIRQ)); --GE HuC6280
+				processIrq <= not ((nmiReg and ((irq1Reg and irq2Reg and tiq_n) or I)) or opcInfo(opcIRQ)); --GE HuC6280
+				--processIrqV := not ((nmiReg and ((irq1Reg and irq2Reg and tiqReg) or I)) or opcInfo(opcIRQ)); --GE HuC6280
+				--processIrq <= processIrqV;
+				--if (processIrqV = '1') then
+				--	irqAdd <= X"6"; -- irq2/opcIRQ
+				--	if irq1Reg = '0' then
+				--		irqAdd <= X"8";
+				--	end if;
+				--	if tiqReg = '0' then
+				--		irqAdd <= X"A";
+				--	end if;
+				--	if nmiReg = '0' then
+				--		irqAdd <= X"C";
+				--	end if;
+				--end if;
 			end if;
 		end if;
 	end process;
@@ -2273,6 +2310,9 @@ calcNextAddr: process(theCpuCycle, opcInfo, indexOut, U, reset, T) --GE added T
 				-- Replace with nextAddrIncr if emulating 65C02 or later cpu.
 				--GE nextAddr <= nextAddrIncrL; 
 				nextAddr <= nextAddrIncr; --GE
+				if opcInfo(opcRti) = '1' then
+					nextAddr <= nextAddrStack; --GE
+				end if;
 			--GE HuC6280 - no penalty for page crossing
 			--GE elsif indexOut(8) = '1' then 
 			--GE	nextAddr <= nextAddrIncrH;
@@ -2414,6 +2454,7 @@ calcAddr: process(clk)
 				when nextAddrDecrH => myAddr(15 downto 8) <= myAddrDecrH;
 				when nextAddrPc => myAddr <= PC;
 				when nextAddrIrq =>
+					--myAddr <= X"FFF" & irqAdd; --GE HuC6280
 					--GE myAddr <= X"FFFE";
 					myAddr <= X"FFF6"; --GE HuC6280
 					if irq1Reg = '0' then
@@ -2487,7 +2528,7 @@ calcAddr: process(clk)
 
 	blk <= opcInfo(opcBlock); --GE HuC6280 Block Transfer Operation
 	
-	nvtbdizc <= N & V & T & (not irqActive) & D & I & Z & C; --GE
+	--nvtbdizc <= N & V & T & (not irqActive) & D & I & Z & C; --GE
 	
 end architecture;
 
