@@ -56,40 +56,26 @@ signal VMC	: vmc_t := VMC_IDLE;
 signal VMC_NEXT : vmc_t := VMC_IDLE;
 signal vram_req_reg : std_logic;
 
-signal BG_RAM_A		: std_logic_vector(15 downto 0);
 signal BG_RAM_DO	: std_logic_vector(15 downto 0);
 signal BG_DO_REG	: std_logic_vector(15 downto 0);
-signal BG_RAM_REQ	: std_logic;
 signal BG_RAM_ACK	: std_logic;
 signal BG_RAM_ACK_REG	: std_logic;
 
-signal SP_RAM_A		: std_logic_vector(15 downto 0);
 signal SP_RAM_DO	: std_logic_vector(15 downto 0);
 signal SP_DO_REG	: std_logic_vector(15 downto 0);
-signal SP_RAM_REQ	: std_logic;
 signal SP_RAM_ACK	: std_logic;
 signal SP_RAM_ACK_REG : std_logic;
 
-signal CPU_RAM_REQ	: std_logic;
-signal CPU_RAM_A	: std_logic_vector(15 downto 0);
 signal CPU_RAM_DO	: std_logic_vector(15 downto 0); -- Output from RAM
 signal CPU_DO_REG	: std_logic_vector(15 downto 0); -- Output from RAM
-signal CPU_RAM_DI	: std_logic_vector(15 downto 0);
-signal CPU_RAM_WE	: std_logic;
 signal CPU_RAM_ACK	: std_logic;
 signal CPU_RAM_ACK_REG: std_logic;
 
-signal DMA_RAM_REQ	: std_logic;
-signal DMA_RAM_A	: std_logic_vector(15 downto 0);
 signal DMA_RAM_DO	: std_logic_vector(15 downto 0); -- Output from RAM
 signal DMA_DO_REG	: std_logic_vector(15 downto 0); -- Output from RAM
-signal DMA_RAM_DI	: std_logic_vector(15 downto 0);
-signal DMA_RAM_WE	: std_logic;
 signal DMA_RAM_ACK	: std_logic;
 signal DMA_RAM_ACK_REG: std_logic;
 
-signal DMAS_RAM_REQ	: std_logic;
-signal DMAS_RAM_A	: std_logic_vector(15 downto 0);
 signal DMAS_RAM_DO	: std_logic_vector(15 downto 0); -- Output from RAM
 signal DMAS_DO_REG	: std_logic_vector(15 downto 0); -- Output from RAM
 signal DMAS_RAM_ACK	: std_logic;
@@ -469,17 +455,17 @@ CPU_RAM_DO <= vram_q when VMC = VMC_CPU else CPU_DO_REG;
 DMA_RAM_DO <= vram_q when VMC = VMC_DMA else DMA_DO_REG;
 DMAS_RAM_DO <= vram_q when VMC = VMC_DMAS else DMAS_DO_REG;
 
-BG_RAM_ACK <= BG_RAM_REQ when VMC = VMC_BG and vram_req_reg = vram_ack and RAM_REQ_PROGRESS = '1' else BG_RAM_ACK_REG;
-SP_RAM_ACK <= SP_RAM_REQ when VMC = VMC_SP and vram_req_reg = vram_ack and RAM_REQ_PROGRESS = '1' else SP_RAM_ACK_REG;
-CPU_RAM_ACK <= CPU_RAM_REQ when VMC = VMC_CPU and vram_req_reg = vram_ack and RAM_REQ_PROGRESS = '1' else CPU_RAM_ACK_REG;
-DMA_RAM_ACK <= DMA_RAM_REQ when VMC = VMC_DMA and vram_req_reg = vram_ack and RAM_REQ_PROGRESS = '1' else DMA_RAM_ACK_REG;
-DMAS_RAM_ACK <= DMAS_RAM_REQ when VMC = VMC_DMAS and vram_req_reg = vram_ack and RAM_REQ_PROGRESS = '1' else DMAS_RAM_ACK_REG;
+BG_RAM_ACK <= BG_RAM_REQ_FF when VMC = VMC_BG and vram_req_reg = vram_ack and RAM_REQ_PROGRESS = '1' else BG_RAM_ACK_REG;
+SP_RAM_ACK <= SP_RAM_REQ_FF when VMC = VMC_SP and vram_req_reg = vram_ack and RAM_REQ_PROGRESS = '1' else SP_RAM_ACK_REG;
+CPU_RAM_ACK <= CPU_RAM_REQ_FF when VMC = VMC_CPU and vram_req_reg = vram_ack and RAM_REQ_PROGRESS = '1' else CPU_RAM_ACK_REG;
+DMA_RAM_ACK <= DMA_RAM_REQ_FF when VMC = VMC_DMA and vram_req_reg = vram_ack and RAM_REQ_PROGRESS = '1' else DMA_RAM_ACK_REG;
+DMAS_RAM_ACK <= DMAS_RAM_REQ_FF when VMC = VMC_DMAS and vram_req_reg = vram_ack and RAM_REQ_PROGRESS = '1' else DMAS_RAM_ACK_REG;
 
-VMC_NEXT <= VMC_BG when BG_RAM_REQ /= BG_RAM_ACK else
-			VMC_SP when SP_RAM_REQ /= SP_RAM_ACK else
-			VMC_CPU when CPU_RAM_REQ /= CPU_RAM_ACK else
-			VMC_DMA when DMA_RAM_REQ /= DMA_RAM_ACK else
-			VMC_DMAS when DMAS_RAM_REQ /= DMAS_RAM_ACK else
+VMC_NEXT <= VMC_BG when BG_RAM_REQ_FF /= BG_RAM_ACK else
+			VMC_SP when SP_RAM_REQ_FF /= SP_RAM_ACK else
+			VMC_CPU when CPU_RAM_REQ_FF /= CPU_RAM_ACK else
+			VMC_DMA when DMA_RAM_REQ_FF /= DMA_RAM_ACK else
+			VMC_DMAS when DMAS_RAM_REQ_FF /= DMAS_RAM_ACK else
 			VMC_IDLE;
 
 process( RESET_N, CLK)
@@ -499,21 +485,21 @@ begin
 				when VMC_IDLE =>
 					null;
 				when VMC_BG =>
-					vram_a <= BG_RAM_A;
+					vram_a <= BG_RAM_A_FF;
 					vram_we <= '0';
 				when VMC_SP =>
-					vram_a <= SP_RAM_A;
+					vram_a <= SP_RAM_A_FF;
 					vram_we <= '0';
 				when VMC_CPU =>
-					vram_a <= CPU_RAM_A;
-					vram_we <= CPU_RAM_WE;
-					vram_d <= CPU_RAM_DI;
+					vram_a <= CPU_RAM_A_FF;
+					vram_we <= CPU_RAM_WE_FF;
+					vram_d <= CPU_RAM_DI_FF;
 				when VMC_DMA =>
-					vram_a <= DMA_RAM_A;
-					vram_we <= DMA_RAM_WE;
-					vram_d <= DMA_RAM_DI;
+					vram_a <= DMA_RAM_A_FF;
+					vram_we <= DMA_RAM_WE_FF;
+					vram_d <= DMA_RAM_DI_FF;
 				when VMC_DMAS =>
-					vram_a <= DMAS_RAM_A;
+					vram_a <= DMAS_RAM_A_FF;
 					vram_we <= '0';
 				end case;
 				if VMC_NEXT /= VMC_IDLE then
@@ -526,19 +512,19 @@ begin
 					null;
 				when VMC_BG =>
 					BG_DO_REG <= vram_q;
-					BG_RAM_ACK_REG <= BG_RAM_REQ;
+					BG_RAM_ACK_REG <= BG_RAM_REQ_FF;
 				when VMC_SP =>
 					SP_DO_REG <= vram_q;
-					SP_RAM_ACK_REG <= SP_RAM_REQ;
+					SP_RAM_ACK_REG <= SP_RAM_REQ_FF;
 				when VMC_CPU =>
 					CPU_DO_REG <= vram_q;
-					CPU_RAM_ACK_REG <= CPU_RAM_REQ;
+					CPU_RAM_ACK_REG <= CPU_RAM_REQ_FF;
 				when VMC_DMA =>
 					DMA_DO_REG <= vram_q;
-					DMA_RAM_ACK_REG <= DMA_RAM_REQ;
+					DMA_RAM_ACK_REG <= DMA_RAM_REQ_FF;
 				when VMC_DMAS =>
 					DMAS_DO_REG <= vram_q;
-					DMAS_RAM_ACK_REG <= DMAS_RAM_REQ;
+					DMAS_RAM_ACK_REG <= DMAS_RAM_REQ_FF;
 				when others => null;
 				end case;
 				RAM_REQ_PROGRESS <= '0';
@@ -2365,26 +2351,5 @@ BUSY_N <= BUSY_N_FF;
 IRQ_N <= IRQ_N_FF;
 COLNO <= COLNO_FF;
 DO <= DO_FF;
-
-
-
-BG_RAM_A	<= BG_RAM_A_FF;
-BG_RAM_REQ	<= BG_RAM_REQ_FF;
-		
-SP_RAM_A	<= SP_RAM_A_FF;
-SP_RAM_REQ	<= SP_RAM_REQ_FF;
-
-CPU_RAM_REQ	<= CPU_RAM_REQ_FF;
-CPU_RAM_A	<= CPU_RAM_A_FF;
-CPU_RAM_DI	<= CPU_RAM_DI_FF;
-CPU_RAM_WE	<= CPU_RAM_WE_FF;
-
-DMA_RAM_REQ	<= DMA_RAM_REQ_FF;
-DMA_RAM_A	<= DMA_RAM_A_FF;
-DMA_RAM_DI	<= DMA_RAM_DI_FF;
-DMA_RAM_WE	<= DMA_RAM_WE_FF;
-
-DMAS_RAM_REQ	<= DMAS_RAM_REQ_FF;
-DMAS_RAM_A		<= DMAS_RAM_A_FF;
 
 end rtl;
