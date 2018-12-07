@@ -12,19 +12,15 @@ use IEEE.STD_LOGIC_UNSIGNED.ALL;
 use IEEE.NUMERIC_STD.ALL;
 
 entity huc6270 is
+	generic (
+		MAX_SPPL : integer := 15
+	);
 	port (
 		CLK 		: in std_logic;
-		RESET_N		: in std_logic;
-
-		-- CPU Interface
-		A			: in std_logic_vector(1 downto 0);
-		CE_N		: in std_logic;
-		WR_N		: in std_logic;
-		RD_N		: in std_logic;		
-		DI			: in std_logic_vector(7 downto 0);
-		DO 			: out std_logic_vector(7 downto 0);
-		BUSY_N		: out std_logic;
-		IRQ_N		: out std_logic;
+		RESET_N	: in std_logic;
+		HSIZE		: in std_logic_vector(9 downto 0);
+		HSTART	: in std_logic_vector(9 downto 0);
+		SP64		: in std_logic;
 
 		vram_req	: out std_logic;
 		vram_ack	: in std_logic;
@@ -32,13 +28,21 @@ entity huc6270 is
 		vram_a		: out std_logic_vector(15 downto 0);
 		vram_d		: out std_logic_vector(15 downto 0);
 		vram_q		: in std_logic_vector(15 downto 0);
+		-- CPU Interface
+		A			: in std_logic_vector(1 downto 0);
+		CE_N		: in std_logic;
+		WR_N		: in std_logic;
+		RD_N		: in std_logic;		
+		DI			: in std_logic_vector(7 downto 0);
+		DO 		: out std_logic_vector(7 downto 0);
+		BUSY_N	: out std_logic;
+		IRQ_N		: out std_logic;
 
 		-- VCE Interface
 		COLNO		: out std_logic_vector(8 downto 0);
 		CLKEN		: in std_logic;
 		HS_N		: in std_logic;
 		VS_N		: in std_logic
-
 	);
 end huc6270;
 
@@ -56,32 +60,23 @@ signal VMC	: vmc_t := VMC_IDLE;
 signal VMC_NEXT : vmc_t := VMC_IDLE;
 signal vram_req_reg : std_logic;
 
-signal BG_RAM_DO	: std_logic_vector(15 downto 0);
 signal BG_DO_REG	: std_logic_vector(15 downto 0);
-signal BG_RAM_ACK	: std_logic;
 signal BG_RAM_ACK_REG	: std_logic;
 
-signal SP_RAM_DO	: std_logic_vector(15 downto 0);
 signal SP_DO_REG	: std_logic_vector(15 downto 0);
-signal SP_RAM_ACK	: std_logic;
 signal SP_RAM_ACK_REG : std_logic;
 
-signal CPU_RAM_DO	: std_logic_vector(15 downto 0); -- Output from RAM
 signal CPU_DO_REG	: std_logic_vector(15 downto 0); -- Output from RAM
-signal CPU_RAM_ACK	: std_logic;
 signal CPU_RAM_ACK_REG: std_logic;
 
-signal DMA_RAM_DO	: std_logic_vector(15 downto 0); -- Output from RAM
 signal DMA_DO_REG	: std_logic_vector(15 downto 0); -- Output from RAM
-signal DMA_RAM_ACK	: std_logic;
 signal DMA_RAM_ACK_REG: std_logic;
 
-signal DMAS_RAM_DO	: std_logic_vector(15 downto 0); -- Output from RAM
 signal DMAS_DO_REG	: std_logic_vector(15 downto 0); -- Output from RAM
-signal DMAS_RAM_ACK	: std_logic;
 signal DMAS_RAM_ACK_REG: std_logic;
 
 signal RAM_REQ_PROGRESS : std_logic;
+
 --------------------------------------------------------------------------------
 -- Registers
 --------------------------------------------------------------------------------
@@ -97,7 +92,7 @@ signal BXR		: std_logic_vector(15 downto 0);
 signal BYR		: std_logic_vector(15 downto 0);
 signal MWR		: std_logic_vector(15 downto 0);
 
-signal HPR		: std_logic_vector(15 downto 0);
+--signal HPR		: std_logic_vector(15 downto 0);
 signal HDR		: std_logic_vector(15 downto 0);
 signal VSR		: std_logic_vector(15 downto 0);
 signal VDR		: std_logic_vector(15 downto 0);
@@ -115,27 +110,17 @@ signal SATB		: std_logic_vector(15 downto 0);
 -- Video counting and internal synchronization
 --------------------------------------------------------------------------------
 -- Registers
-signal HDS : std_logic_vector(6 downto 0);
-signal HSW : std_logic_vector(4 downto 0);
-signal HDE : std_logic_vector(6 downto 0);
 signal HDW : std_logic_vector(6 downto 0);
-
-signal VDS : std_logic_vector(7 downto 0);
-signal VSW : std_logic_vector(4 downto 0);
-signal VDW : std_logic_vector(8 downto 0);
-signal VCR : std_logic_vector(7 downto 0);
 
 -- Interrupts
 signal IRQ_RCR_SET	: std_logic;
 signal IRQ_VBL_SET	: std_logic;
-
 
 -- Intermediate signals
 signal X		: std_logic_vector(9 downto 0);
 signal Y		: std_logic_vector(8 downto 0);
 signal HS_N_PREV	: std_logic;
 signal VS_N_PREV	: std_logic;
-signal Y_UPDATE		: std_logic;
 
 signal X_BG_START	: std_logic_vector(9 downto 0);
 signal X_REN_START	: std_logic_vector(9 downto 0);
@@ -143,8 +128,6 @@ signal X_BG_END		: std_logic_vector(9 downto 0);
 signal X_REN_END	: std_logic_vector(9 downto 0);
 signal Y_BGREN_START	: std_logic_vector(8 downto 0);
 signal Y_BGREN_END	: std_logic_vector(8 downto 0);
-signal Y_DISP_START	: std_logic_vector(8 downto 0);
-signal Y_DISP_END	: std_logic_vector(8 downto 0);
 
 -- signal X_SP_START	: std_logic_vector(9 downto 0);
 -- signal X_SP_END		: std_logic_vector(9 downto 0);
@@ -155,11 +138,8 @@ signal BG_ACTIVE	: std_logic;
 signal SP1_ACTIVE	: std_logic;
 signal SP2_ACTIVE	: std_logic;
 signal REN_ACTIVE	: std_logic;
-signal DMA_ACTIVE	: std_logic;
-signal DMAS_ACTIVE	: std_logic;
-signal DMAS_DY		: std_logic_vector(3 downto 0);
-signal RCNT			: std_logic_vector(8 downto 0);
 signal DBG_VBL		: std_logic;
+signal DCR_DMAS_REQ		: std_logic;
 
 signal SP_ON		: std_logic;
 signal BG_ON		: std_logic;
@@ -188,6 +168,7 @@ signal YOFS			: std_logic_vector(8 downto 0);
 signal YOFS_RELOAD	: std_logic;
 signal YOFS_REL_REQ	: std_logic;
 signal YOFS_REL_ACK	: std_logic;
+signal XOFS			: std_logic_vector(9 downto 0);
 
 -- State machine - Part 1
 type bg1_t is ( BG1_INI, BG1_INI_W,
@@ -223,6 +204,8 @@ signal BG2			: bg2_t;
 -- Background engine - RAM access signals
 signal BG_RAM_A_FF		: std_logic_vector(15 downto 0);
 signal BG_RAM_REQ_FF	: std_logic := '0';
+signal BG_RAM_DO		: std_logic_vector(15 downto 0);
+signal BG_RAM_ACK		: std_logic;
 
 
 --------------------------------------------------------------------------------
@@ -237,7 +220,7 @@ signal IRQ_COL_TRIG	: std_logic;
 signal IRQ_OVF_SET	: std_logic;
 
 -- Intermediate signals - Part 1
-signal SP_NB	: std_logic_vector(4 downto 0);
+signal SP_NB	: std_logic_vector(6 downto 0);
 signal SP_CUR_Y	: std_logic_vector(9 downto 0);
 signal SP_Y		: std_logic_vector(9 downto 0);
 signal SP_X		: std_logic_vector(9 downto 0);
@@ -263,7 +246,7 @@ type sp_prebuf_entry_t is
 		CG		: std_logic;
 		ADDR	: std_logic_vector(15 downto 0);
 	end record;
-type sp_prebuf_t is array(0 to 15) of sp_prebuf_entry_t;
+type sp_prebuf_t is array(0 to MAX_SPPL) of sp_prebuf_entry_t;
 signal SP_PREBUF	: sp_prebuf_t;
 
 -- Sprite engine - SAT access signals
@@ -281,7 +264,7 @@ signal SP1_CNT	: std_logic_vector(1 downto 0);
 
 
 -- Intermediate signals - Part 2
-signal SP_CUR	: std_logic_vector(3 downto 0);
+signal SP_CUR	: std_logic_vector(5 downto 0);
 
 -- Sprite buffers
 type sp_buf_entry_t is
@@ -297,12 +280,14 @@ type sp_buf_entry_t is
 		P2		: std_logic_vector(15 downto 0);
 		P3		: std_logic_vector(15 downto 0);
 	end record;
-type sp_buf_t is array(0 to 15) of sp_buf_entry_t;
+type sp_buf_t is array(0 to MAX_SPPL) of sp_buf_entry_t;
 signal SP_BUF	: sp_buf_t;
 
 -- Sprite engine - RAM access signals
 signal SP_RAM_A_FF		: std_logic_vector(15 downto 0);
 signal SP_RAM_REQ_FF	: std_logic := '0';
+signal SP_RAM_DO		: std_logic_vector(15 downto 0);
+signal SP_RAM_ACK		: std_logic;
 
 -- State machine - Part 2
 type sp2_t is ( SP2_INI, SP2_INI_W,
@@ -324,8 +309,9 @@ signal REN_MEM_WE	: std_logic;
 signal REN_MEM_DO	: std_logic_vector(7 downto 0);
 
 signal REN_BG_COL	: std_logic_vector(7 downto 0);
-signal REN_SP_OPQ	: std_logic_vector(15 downto 0); -- Sprite pixel on/off
-type ren_sp_col_t is array(15 downto 0) of std_logic_vector(8 downto 0); -- PRI & PAL & COL
+signal REN_SP_OPQ	: std_logic_vector(MAX_SPPL downto 0); -- Sprite pixel on/off
+constant SP_OPQ_Z : std_logic_vector(MAX_SPPL downto 0) := (others => '0');
+type ren_sp_col_t is array(MAX_SPPL downto 0) of std_logic_vector(8 downto 0); -- PRI & PAL & COL
 signal REN_SP_COLTAB	: ren_sp_col_t;
 signal REN_SP_COL	: std_logic_vector(7 downto 0);
 signal REN_SP_PRI	: std_logic;
@@ -367,13 +353,13 @@ signal IRQ_DMAS		: std_logic;
 signal IRQ_DMA		: std_logic;
 signal IRQ_VBL		: std_logic;
 
-signal BUSY			: std_logic;
-
 -- RAM access signals
 signal CPU_RAM_REQ_FF		: std_logic := '0';
 signal CPU_RAM_A_FF		: std_logic_vector(15 downto 0);
 signal CPU_RAM_DI_FF		: std_logic_vector(15 downto 0);
 signal CPU_RAM_WE_FF		: std_logic := '0';
+signal CPU_RAM_DO		: std_logic_vector(15 downto 0);
+signal CPU_RAM_ACK	: std_logic;
 
 -- Output buffers
 signal DO_FF		: std_logic_vector(7 downto 0);
@@ -401,6 +387,8 @@ signal DMA_RAM_REQ_FF		: std_logic := '0';
 signal DMA_RAM_A_FF		: std_logic_vector(15 downto 0);
 signal DMA_RAM_DI_FF		: std_logic_vector(15 downto 0);
 signal DMA_RAM_WE_FF		: std_logic := '0';
+signal DMA_RAM_DO		: std_logic_vector(15 downto 0);
+signal DMA_RAM_ACK	: std_logic;
 
 signal DMA_SOUR_SET_REQ	: std_logic;
 signal DMA_DESR_SET_REQ	: std_logic;
@@ -425,6 +413,8 @@ signal DMAS_BUSY		: std_logic;
 
 signal DMAS_RAM_REQ_FF		: std_logic := '0';
 signal DMAS_RAM_A_FF		: std_logic_vector(15 downto 0);
+signal DMAS_RAM_DO	: std_logic_vector(15 downto 0);
+signal DMAS_RAM_ACK	: std_logic;
 
 signal DMAS_SAT_A		: std_logic_vector(7 downto 0);
 signal DMAS_SAT_DI		: std_logic_vector(15 downto 0);
@@ -434,108 +424,16 @@ signal DMAS_SAT_WE		: std_logic := '0';
 type dmas_t is (	DMAS_IDLE,
 					DMAS_READ, DMAS_READ1, DMAS_READ2,
 					DMAS_WRITE,
+					DMAS_WAIT1, DMAS_WAIT2,
 					DMAS_END );
 signal DMAS	: dmas_t;
 
-
-constant speedUpSp	: boolean := true;
-constant speedUpBg	: boolean := true;
-
 begin
-
-----------------------------------------------------------------
--- VRAM CONTROLLER
-----------------------------------------------------------------
-vram_req <= vram_req_reg;
-
--- Get the ack and data one cycle earlier
-BG_RAM_DO <= vram_q when VMC = VMC_BG else BG_DO_REG;
-SP_RAM_DO <= vram_q when VMC = VMC_SP else SP_DO_REG;
-CPU_RAM_DO <= vram_q when VMC = VMC_CPU else CPU_DO_REG;
-DMA_RAM_DO <= vram_q when VMC = VMC_DMA else DMA_DO_REG;
-DMAS_RAM_DO <= vram_q when VMC = VMC_DMAS else DMAS_DO_REG;
-
-BG_RAM_ACK <= BG_RAM_REQ_FF when VMC = VMC_BG and vram_req_reg = vram_ack and RAM_REQ_PROGRESS = '1' else BG_RAM_ACK_REG;
-SP_RAM_ACK <= SP_RAM_REQ_FF when VMC = VMC_SP and vram_req_reg = vram_ack and RAM_REQ_PROGRESS = '1' else SP_RAM_ACK_REG;
-CPU_RAM_ACK <= CPU_RAM_REQ_FF when VMC = VMC_CPU and vram_req_reg = vram_ack and RAM_REQ_PROGRESS = '1' else CPU_RAM_ACK_REG;
-DMA_RAM_ACK <= DMA_RAM_REQ_FF when VMC = VMC_DMA and vram_req_reg = vram_ack and RAM_REQ_PROGRESS = '1' else DMA_RAM_ACK_REG;
-DMAS_RAM_ACK <= DMAS_RAM_REQ_FF when VMC = VMC_DMAS and vram_req_reg = vram_ack and RAM_REQ_PROGRESS = '1' else DMAS_RAM_ACK_REG;
-
-VMC_NEXT <= VMC_BG when BG_RAM_REQ_FF /= BG_RAM_ACK else
-			VMC_SP when SP_RAM_REQ_FF /= SP_RAM_ACK else
-			VMC_CPU when CPU_RAM_REQ_FF /= CPU_RAM_ACK else
-			VMC_DMA when DMA_RAM_REQ_FF /= DMA_RAM_ACK else
-			VMC_DMAS when DMAS_RAM_REQ_FF /= DMAS_RAM_ACK else
-			VMC_IDLE;
-
-process( RESET_N, CLK)
-begin
-	if RESET_N = '0' then
-
-		vram_req_reg <= '0';
-
-		VMC<=VMC_IDLE;
-		RAM_REQ_PROGRESS <= '0';
-	elsif rising_edge(CLK) then
-
-		if vram_req_reg = vram_ack then
-			if RAM_REQ_PROGRESS = '0' then
-				VMC <= VMC_NEXT;
-				case VMC_NEXT is
-				when VMC_IDLE =>
-					null;
-				when VMC_BG =>
-					vram_a <= BG_RAM_A_FF;
-					vram_we <= '0';
-				when VMC_SP =>
-					vram_a <= SP_RAM_A_FF;
-					vram_we <= '0';
-				when VMC_CPU =>
-					vram_a <= CPU_RAM_A_FF;
-					vram_we <= CPU_RAM_WE_FF;
-					vram_d <= CPU_RAM_DI_FF;
-				when VMC_DMA =>
-					vram_a <= DMA_RAM_A_FF;
-					vram_we <= DMA_RAM_WE_FF;
-					vram_d <= DMA_RAM_DI_FF;
-				when VMC_DMAS =>
-					vram_a <= DMAS_RAM_A_FF;
-					vram_we <= '0';
-				end case;
-				if VMC_NEXT /= VMC_IDLE then
-					vram_req_reg <= not vram_req_reg;
-					RAM_REQ_PROGRESS <= '1';
-				end if;
-			else
-				case VMC is
-				when VMC_IDLE =>
-					null;
-				when VMC_BG =>
-					BG_DO_REG <= vram_q;
-					BG_RAM_ACK_REG <= BG_RAM_REQ_FF;
-				when VMC_SP =>
-					SP_DO_REG <= vram_q;
-					SP_RAM_ACK_REG <= SP_RAM_REQ_FF;
-				when VMC_CPU =>
-					CPU_DO_REG <= vram_q;
-					CPU_RAM_ACK_REG <= CPU_RAM_REQ_FF;
-				when VMC_DMA =>
-					DMA_DO_REG <= vram_q;
-					DMA_RAM_ACK_REG <= DMA_RAM_REQ_FF;
-				when VMC_DMAS =>
-					DMAS_DO_REG <= vram_q;
-					DMAS_RAM_ACK_REG <= DMAS_RAM_REQ_FF;
-				when others => null;
-				end case;
-				RAM_REQ_PROGRESS <= '0';
-			end if;
-		end if;
-	end if;
-end process;
 
 --------------------------------------------------------------------------------
 -- Background line buffer
 --------------------------------------------------------------------------------
+
 bg_buf : entity work.linebuf port map(
 	clock		=> CLK,
 	
@@ -571,15 +469,18 @@ sat : entity work.satram port map(
 --------------------------------------------------------------------------------
 process( CLK )
 
-variable V_HDS : std_logic_vector(6 downto 0);
-variable V_HSW : std_logic_vector(4 downto 0);
+variable V_HSW : std_logic_vector(9 downto 0);
+variable V_HDS : std_logic_vector(9 downto 0);
 variable V_HDE : std_logic_vector(6 downto 0);
-variable V_HDW : std_logic_vector(6 downto 0);
+variable V_HDW : std_logic_vector(9 downto 0);
 
-variable V_VDS : std_logic_vector(7 downto 0);
-variable V_VSW : std_logic_vector(4 downto 0);
+variable V_VDS : std_logic_vector(8 downto 0);
+variable V_VDE : std_logic_vector(8 downto 0);
+variable V_VSW : std_logic_vector(5 downto 0);
 variable V_VDW : std_logic_vector(8 downto 0);
 variable V_VCR : std_logic_vector(7 downto 0);
+
+variable RCNT	: std_logic_vector(8 downto 0);
 
 begin
 	if rising_edge(CLK) then
@@ -593,14 +494,12 @@ begin
 			
 			HS_N_PREV <= '1';
 			VS_N_PREV <= '0';
-			Y_UPDATE <= '0';
 
 			BG_ACTIVE <= '0';
 			SP1_ACTIVE <= '0';
 			SP2_ACTIVE <= '0';
 			REN_ACTIVE <= '0';
-			DMA_ACTIVE <= '0';
-			DMAS_ACTIVE <= '0';
+			DCR_DMAS_REQ <= '0';
 			
 			X_BG_START <= (others => '1');
 			X_REN_START <= (others => '1');
@@ -610,213 +509,153 @@ begin
 			Y_BGREN_START <= (others => '1');
 			Y_BGREN_END <= (others => '1');
 			
-			Y_DISP_END <= (others => '1');
-			Y_DISP_START <= (others => '1');
-			
 			-- X_SP_START <= (others => '1');
 			-- X_SP_END <= (others => '1');
 			Y_SP_START <= (others => '1');
 			Y_SP_END <= (others => '1');
 
-			DMAS_DY <= (others => '0');
-			RCNT <= (others => '1');
-			
+			RCNT := (others => '1');
+
 			SP_ON <= '0';
 			BG_ON <= '0';
 			BURST <= '1';
-			
+
 			YOFS <= (others => '0');
 		else
 			if CLKEN = '1' then
 				HS_N_PREV <= HS_N;
 				X <= X + 1;
-				
-				Y_UPDATE <= '0';
-				
+
+				DCR_DMAS_REQ <= '0';
+
 				if HS_N_PREV = '1' and HS_N = '0' then
 					X <= (others => '0');
-					
-					V_HDS := HPR(14 downto 8);
-					V_HSW := HPR(4 downto 0);
-					V_HDE := HDR(14 downto 8);
-					V_HDW := HDR(6 downto 0);
-		
-					HDS <= V_HDS;
-					HSW <= V_HSW;
-					HDE <= V_HDE;
-					HDW <= V_HDW;
-		
-					X_REN_START <= ("00" & V_HSW & "000") 
-						+ ( V_HDS & "000" ) 
-						+ ( "0000011" & "000" ); -- (HSW+1+HDS+1)<<3
 
-					X_REN_END <= ("00" & V_HSW & "000") 
-						+ ( V_HDS & "000" ) 
-						+ ( V_HDW & "000" )
-						+ ( "0000011" & "111" ); -- (HSW+1+HDS+1+HDW+1)<<3
-				
-					X_BG_START <= ("00" & V_HSW & "000") 
-						+ ( V_HDS & "000" ) 
-						+ ( "0000000" & "000" ); -- (HSW+1+HDS+1 -1 - 1)<<3
-									
-					-- X_BG_END <= ("00" & V_HSW & "000") 
-						-- + ( V_HDS & "000" ) 
-						-- + ( V_HDW & "000" )
-						-- + ( "0000010" & "000" ); -- (HSW+1+HDS+1+HDW+1 -1+1 - 1)<<3
-						
-					-- if X < X_BG_END then 
-					if X < X_REN_END then 
-						-- Force Y update even if Hxx register settings
-						-- prevent to reach the end of the active display
-						-- BG_ACTIVE <= '0';
-						Y_UPDATE <= '1';
-						-- REN_ACTIVE <= '0';
-						-- SP1_ACTIVE <= '0';
-					end if;
-				end if;
-				
-				if X = X_BG_START and Y >= Y_BGREN_START and Y < Y_BGREN_END and BG_ON = '1' then
-					BG_ACTIVE <= '1';
-					YOFS_REL_ACK <= '1';
-					if Y = Y_BGREN_START or YOFS_RELOAD = '1' then
-						YOFS <= BYR(8 downto 0) + 1;
+					--V_HDS := HPR(14 downto 8)&"000";
+					V_HDW := (HDR(6 downto 0)+"1")&"000";
+
+					if V_HDW >= HSIZE then 
+						V_HDS := (others => '0');
+						V_HDW := HSIZE;
 					else
-						YOFS <= YOFS + 1;
+						V_HDS := HSIZE - V_HDW;
+					end if;
+					V_HDS := '0'&V_HDS(9 downto 1) + HSTART - 1;
+
+					--V_HDS := HPR(4 downto 0);
+					--V_HDE := HDR(14 downto 8);
+
+					HDW <= HDR(6 downto 0);
+
+					X_REN_START <= V_HDS;
+					X_REN_END   <= V_HDS + V_HDW;
+					-- BG must start before REN (max 2*8 tile reads, plus render overhead)
+					X_BG_START  <= V_HDS - "10101";
+
+					-- Raster counter
+					RCNT := RCNT + 1;
+					if Y = Y_BGREN_START then
+						RCNT := "0" & x"40";
+					end if;
+
+					-- Raster compare interrupt
+					if RCNT = RCR(9 downto 0) and CR(2) = '1' then
+						IRQ_RCR_SET <= '1';
 					end if;
 				end if;
-				if X = X_REN_START and Y >= Y_BGREN_START and Y < Y_BGREN_END then
-					REN_ACTIVE <= '1';
-				end if;
-				if X = X_REN_START and Y >= Y_SP_START and Y < Y_SP_END and SP_ON = '1' then
-					SP1_ACTIVE <= '1';
-				end if;
-				
-				if X = X_BG_START then
+
+				if X = X_BG_START-1 then
 					SP2_ACTIVE <= '0';
+					BG_ON <= CR(7);
+					if Y >= Y_BGREN_START and Y < Y_BGREN_END and CR(7) = '1' then
+						BG_ACTIVE <= '1';
+						YOFS_REL_ACK <= '1';
+						if Y = Y_BGREN_START then
+							YOFS <= BYR(8 downto 0);
+						elsif YOFS_RELOAD = '1' then
+							YOFS <= BYR(8 downto 0) + 1;
+						else
+							YOFS <= YOFS + 1;
+						end if;
+						XOFS <= BXR(9 downto 0);
+					end if;
 				end if;
-				-- if X = X_BG_END then
-					-- BG_ACTIVE <= '0';
-					-- Y_UPDATE <= '1';
-				-- end if;
-				if X = X_REN_END then
-					-- BG_ACTIVE <= '0';
-					Y_UPDATE <= '1';
-					-- REN_ACTIVE <= '0';
-					-- SP1_ACTIVE <= '0';
+
+				if X = X_REN_START-1 then
+					SP_ON <= CR(6);
+					if Y >= Y_BGREN_START and Y < Y_BGREN_END then
+						REN_ACTIVE <= '1';
+					end if;
+
+					if Y >= Y_SP_START and Y < Y_SP_END and CR(6) = '1' then
+						SP1_ACTIVE <= '1';
+					end if;
+
+					-- VBlank Interrupt
+					if Y = Y_BGREN_END and CR(3) = '1' then
+						IRQ_VBL_SET <= '1';
+					end if;
+
+					-- Burst Mode
+					-- Shouldn't CR(7 downto 6)be checked every visible line according to doc?
+					if Y = Y_BGREN_START then
+						if CR(7 downto 6) = "00" then
+							BURST <= '1';
+						else
+							BURST <= '0';
+						end if;
+					end if;
 				end if;
-				
-				if Y_UPDATE = '1' then
+
+				if X = X_REN_END-1 then
 					BG_ACTIVE <= '0';
 					REN_ACTIVE <= '0';
 					SP1_ACTIVE <= '0';
 
-					VS_N_PREV <= VS_N;
-					
 					Y <= Y + 1;
-					
-					SP_ON <= CR(6);
-					BG_ON <= CR(7);
-					
-					if VS_N_PREV = '0' and VS_N = '1' then
+
+					VS_N_PREV <= VS_N;
+					if VS_N_PREV = '1' and VS_N = '0' then
 						Y <= (others => '0');
-						
-						V_VDS := VSR(15 downto 8);
-						V_VSW := VSR(4 downto 0);
+
+						V_VDS := ('0'&VSR(15 downto 8))+2;
+						V_VSW := ('0'&VSR( 4 downto 0))+1;
 						V_VDW := VDR(8 downto 0);
-						V_VCR := VDE(7 downto 0);
-						
-						VDS <= V_VDS;
-						VSW <= V_VSW;
-						VDW <= V_VDW;
-						VCR <= V_VCR;
-
-						Y_DISP_START <= ("0" & V_VDS);
-						
-						Y_BGREN_START <= ("0" & V_VDS)
-							+ ( "000000010" );
-						
-						Y_BGREN_END <= ("0" & V_VDS)
-							+ V_VDW
-							+ ( "000000011" );							
-							
-						Y_SP_START <= ("0" & V_VDS)
-							+ ( "000000001" );
-						
-						Y_SP_END <= ("0" & V_VDS)
-							+ V_VDW
-							+ ( "000000010" );
-			
-						Y_DISP_END <= ("0" & V_VDS)
-							+ V_VDW
-							+ ("0" & V_VCR)
-							+ ( "000000011" );
-
-						-- Is it needed ?
-						if CR(7 downto 6) = "00" then
-							BURST <= '1';
-						else
-							BURST <= '0';
+						if V_VDW > 262 then
+							-- some games use 1FF value for VDW which overflows calculations below
+							-- thus limit it to max possible value.
+							V_VDW := std_logic_vector(to_unsigned(262,9));
 						end if;
-			
+
+						--V_VCR := VDE(7 downto 0);
+
+						V_VDS := V_VDS + V_VSW;
+						V_VDE := V_VDS + V_VDW + 1;
+
+						-- Make sure display ends before vsync and there is at least 1 blank line at the end
+						-- possible Y values 0..262 (limited by ext VS_N)
+						if V_VDE > 262 then
+							V_VDE := std_logic_vector(to_unsigned(262,9));
+						end if;
+
+						Y_BGREN_START <= V_VDS;
+						Y_BGREN_END   <= V_VDE;
+						Y_SP_START    <= V_VDS - 1;   -- SP1 state machine starts on line before BG REN
+						Y_SP_END      <= V_VDE;
 					end if;
 
-					-- Burst Mode
-					if Y = Y_DISP_START then
-						if CR(7 downto 6) = "00" then
-							BURST <= '1';
-						else
-							BURST <= '0';
+					if Y = Y_BGREN_END-1 then
+						BURST <= '1';
+						if DCR(4) = '1' then -- Auto SATB DMA
+							DCR_DMAS_REQ <= '1';
 						end if;
 					end if;
-					
-					if Y = Y_DISP_END then
-						-- Frame counter reset
-						Y <= (others => '0');
-					end if;
-					
-					if Y = Y_BGREN_END or Y = 262 then
-						-- VBlank Interrupt
-						if CR(3) = '1' then
-							IRQ_VBL_SET <= '1';
-						end if;
-						DBG_VBL <= '1';
-						DMAS_DY <= x"4";
-					else
-						DBG_VBL <= '0';
-					end if;
-					
-					-- VRAM-SAT DMA
-					if DMAS_DY /= x"0" then
-						DMAS_DY <= DMAS_DY - 1;
-					end if;
-					if DMAS_DY >= 1 and DMAS_DY < 3 then
-						DMAS_ACTIVE <= '1';
-					else
-						DMAS_ACTIVE <= '0';
-					end if;
-					
-					-- Raster counter
-					RCNT <= RCNT + 1;
-					--if Y = Y_DISP_START then
-					if Y = Y_DISP_START - 1 then
-						RCNT <= "0" & x"40";
-					end if;
-					-- Raster compare interrupt
-					if ("0" & RCNT) = RCR(9 downto 0) and CR(2) = '1' then
-						IRQ_RCR_SET <= '1';
-					end if;
-					
-					if Y >= Y_SP_START and Y < Y_SP_END and SP_ON = '1' then
+
+					if Y >= Y_SP_START-1 and Y < Y_SP_END-1 and SP_ON = '1' then
 						SP2_ACTIVE <= '1';
 					end if;
-					
-					if Y >= Y_BGREN_END or Y < Y_SP_START or BURST = '1' then
-						DMA_ACTIVE <= '1';
-					else
-						DMA_ACTIVE <= '0';
-					end if;
-					
 				end if;
+
 			end if; -- CLKEN
 		end if;
 	end if;
@@ -855,16 +694,16 @@ begin
 			BG_RAM_REQ_FF <= '0';
 			
 			BG_BUSY <= '0';			
-			BG_BUSY2 <= '0';			
+			--BG_BUSY2 <= '0';			
 		else			
 			case BG1 is
 			when BG1_INI =>
 				BG_BUSY <= '0';
-				BG_BUSY2 <= '0';			
+				--BG_BUSY2 <= '0';			
 				
 				if BG_ACTIVE = '1' then
 					BG_BUSY <= '1';
-					BG_BUSY2 <= '1';
+					--BG_BUSY2 <= '1';
 					
 					-- V_BG_Y := Y - Y_BGREN_START + BYR(8 downto 0);
 					V_BG_Y := YOFS;
@@ -873,12 +712,12 @@ begin
 					else
 						BG_Y <= V_BG_Y;
 					end if;
-					BG_TX <= BXR(9 downto 3);
+					BG_TX <= XOFS(9 downto 3);
 				
-					BG_PX <= X_REN_START - ("0000000" & BXR(2 downto 0));
+					BG_PX <= X_REN_START - ("0000000" & XOFS(2 downto 0));
 					
 					TX <= (others => '0');
-					if BXR(2 downto 0) = "000" then
+					if XOFS(2 downto 0) = "000" then
 						TX_MAX <= HDW;
 					else
 						TX_MAX <= HDW + 1;
@@ -891,7 +730,7 @@ begin
 				end if;
 			
 			when BG1_INI_W =>
-				if speedUpBg or CLKEN = '1' then
+				if CLKEN = '1' then
 					case BG_DW is
 					when "00" =>
 						BG1 <= BG1_CPU;
@@ -903,17 +742,17 @@ begin
 			when BG1_CPU =>
 				-- Allow one pending CPU VRAM request to be handled
 				BG_BUSY <= '0';
-				BG_BUSY2 <= '0';
+				--BG_BUSY2 <= '0';
 				BG1 <= BG1_CPU_W;
 			
 			when BG1_CPU_W =>
 				BG_BUSY <= '1';
 				
-				if speedUpBg or CLKEN = '1' then
+				if CLKEN = '1' then
 					BG_CYC <= BG_CYC + 1;
 					case BG_DW is
 					when "00" =>
-						BG_BUSY2 <= '1';
+						--BG_BUSY2 <= '1';
 						case BG_CYC(2 downto 1) is
 						when "00" => BG1 <= BG1_BAT; 
 						when "01" => BG1 <= BG1_NOP;
@@ -923,7 +762,7 @@ begin
 						end case;
 					when others =>
 						if BG_CYC = "011" then
-							BG_BUSY2 <= '1';
+							--BG_BUSY2 <= '1';
 							BG1 <= BG1_CG0;
 						end if;
 					end case;
@@ -947,7 +786,8 @@ begin
 				BG1 <= BG1_BAT_W;
 				
 			when BG1_BAT_W =>
-				if (speedUpBg or CLKEN = '1') and BG_RAM_REQ_FF = BG_RAM_ACK then
+				--if CLKEN = '1' and BG_RAM_REQ_FF = BG_RAM_ACK then
+				if BG_RAM_REQ_FF = BG_RAM_ACK then
 					
 					BG_PAL <= BG_RAM_DO(15 downto 12);
 					BG_RAM_A_FF <= BG_RAM_DO(11 downto 0) & "0" & BG_Y(2 downto 0);
@@ -970,7 +810,7 @@ begin
 				BG1 <= BG1_NOP_W;
 			
 			when BG1_NOP_W =>
-				if speedUpBg or CLKEN = '1' then
+				if CLKEN = '1' then
 					BG_CYC <= BG_CYC + 1;
 					BG1 <= BG1_CPU;
 				end if;
@@ -980,7 +820,8 @@ begin
 				BG1 <= BG1_CG0_W;
 			
 			when BG1_CG0_W =>
-				if (speedUpBg or CLKEN = '1') and BG_RAM_REQ_FF = BG_RAM_ACK then
+				--if CLKEN = '1' and BG_RAM_REQ_FF = BG_RAM_ACK then
+				if BG_RAM_REQ_FF = BG_RAM_ACK then
 					BG_P01 <= BG_RAM_DO;
 					
 					BG_CYC <= BG_CYC + 1;
@@ -1004,7 +845,8 @@ begin
 				BG1 <= BG1_CG1_W;
 
 			when BG1_CG1_W =>				
-				if (speedUpBg or CLKEN = '1') and BG_RAM_REQ_FF = BG_RAM_ACK then					
+				--if CLKEN = '1' and BG_RAM_REQ_FF = BG_RAM_ACK then					
+				if BG_RAM_REQ_FF = BG_RAM_ACK then					
 					if BG_DW = "11" and BG_CM = '0' then
 						BG_P01 <= BG_RAM_DO;
 					else
@@ -1036,7 +878,7 @@ begin
 				
 			when BG1_END =>
 				BG_BUSY <= '0';
-				BG_BUSY2 <= '0';
+				--BG_BUSY2 <= '0';
 				if BG_ACTIVE = '0' then
 					BG1 <= BG1_INI;
 				end if;
@@ -1083,7 +925,7 @@ begin
 					& BG2_P2(conv_integer(TPX)) 
 					& BG2_P1(conv_integer(TPX)) 
 					& BG2_P0(conv_integer(TPX));
-				if (BG2_MEM_A >= X_REN_START) and (BG2_MEM_A <= X_REN_END) then
+				if (BG2_MEM_A >= X_REN_START) and (BG2_MEM_A < X_REN_END) then
 					BG2_MEM_WE <= '1';
 				end if;
 				BG2 <= BG2_LOOP;
@@ -1128,12 +970,12 @@ begin
 		
 		if RESET_N = '0' then
 			SP1 <= SP1_INI;			
-			SP_NB <= "00000";
+			SP_NB <= "0000000";
 		else
 			case SP1 is
 			when SP1_INI =>
 				if SP1_ACTIVE = '1' then
-					SP_NB <= "00000";					
+					SP_NB <= "0000000";					
 					SP_CUR_Y <= ("0" & Y) - ("0" & Y_SP_START) + 64;
 					SP_SAT_A <= "000000" & "11";
 					
@@ -1175,8 +1017,8 @@ begin
 				end case;
 
 				if ( SP_CUR_Y >= SP_Y) and ( SP_CUR_Y < SP_Y + V_SP_H) then
-					if SP_NB = "10000" then 
-						SP_NB <= "11111"; -- Overflow
+					if (SP_NB = "0010000" and SP64 = '0') or SP_NB = "1000000" then 
+						SP_NB <= "1111111"; -- Overflow
 						if CR(1) = '1' then
 							IRQ_OVF_SET <= '1';
 						end if;
@@ -1241,20 +1083,21 @@ begin
 					V_SP_NAME(0) := SP_NAME(0);
 				end if;
 
-				if SP_NB = "00000" then
-					SP_PREBUF(conv_integer(SP_NB(3 downto 0))).ZERO <= '1';
+				if SP_NB = "0000000" then
+					SP_PREBUF(conv_integer(SP_NB(5 downto 0))).ZERO <= '1';
 				else
-					SP_PREBUF(conv_integer(SP_NB(3 downto 0))).ZERO <= '0';
+					SP_PREBUF(conv_integer(SP_NB(5 downto 0))).ZERO <= '0';
 				end if;
-				SP_PREBUF(conv_integer(SP_NB(3 downto 0))).PRI <= SP_PRI;
-				SP_PREBUF(conv_integer(SP_NB(3 downto 0))).PAL <= SP_PAL;
-				SP_PREBUF(conv_integer(SP_NB(3 downto 0))).X <= SP_X + X_REN_START - 32;
-				SP_PREBUF(conv_integer(SP_NB(3 downto 0))).HF <= SP_HF;
-				SP_PREBUF(conv_integer(SP_NB(3 downto 0))).ADDR <= V_SP_NAME & "00" & V_Y_OFS(3 downto 0);
-				
+				SP_PREBUF(conv_integer(SP_NB(5 downto 0))).PRI <= SP_PRI;
+				SP_PREBUF(conv_integer(SP_NB(5 downto 0))).PAL <= SP_PAL;
+				SP_PREBUF(conv_integer(SP_NB(5 downto 0))).X <= SP_X + X_REN_START - 32;
+				SP_PREBUF(conv_integer(SP_NB(5 downto 0))).HF <= SP_HF;
+				SP_PREBUF(conv_integer(SP_NB(5 downto 0))).ADDR <= V_SP_NAME & "00" & V_Y_OFS(3 downto 0);
+				SP_PREBUF(conv_integer(SP_NB(5 downto 0))).CG <= SP_CG;
+
 				if SP_CGX = '1' then
-					if SP_NB = "01111" then
-						SP_NB <= "11111"; -- Overflow
+					if (SP_NB = "0001111" and SP64='0') or SP_NB = "0111111" then
+						SP_NB <= "1111111"; -- Overflow
 						if CR(1) = '1' then
 							IRQ_OVF_SET <= '1';
 						end if;						
@@ -1296,12 +1139,13 @@ begin
 				end case;
 				V_SP_NAME(0) := not SP_HF;
 
-				SP_PREBUF(conv_integer(SP_NB(3 downto 0))).ZERO <= '0';
-				SP_PREBUF(conv_integer(SP_NB(3 downto 0))).PRI <= SP_PRI;
-				SP_PREBUF(conv_integer(SP_NB(3 downto 0))).PAL <= SP_PAL;
-				SP_PREBUF(conv_integer(SP_NB(3 downto 0))).X <= SP_X + X_REN_START - 32 + 16;
-				SP_PREBUF(conv_integer(SP_NB(3 downto 0))).HF <= SP_HF;
-				SP_PREBUF(conv_integer(SP_NB(3 downto 0))).ADDR <= V_SP_NAME & "00" & V_Y_OFS(3 downto 0);
+				SP_PREBUF(conv_integer(SP_NB(5 downto 0))).ZERO <= '0';
+				SP_PREBUF(conv_integer(SP_NB(5 downto 0))).PRI <= SP_PRI;
+				SP_PREBUF(conv_integer(SP_NB(5 downto 0))).PAL <= SP_PAL;
+				SP_PREBUF(conv_integer(SP_NB(5 downto 0))).X <= SP_X + X_REN_START - 32 + 16;
+				SP_PREBUF(conv_integer(SP_NB(5 downto 0))).HF <= SP_HF;
+				SP_PREBUF(conv_integer(SP_NB(5 downto 0))).ADDR <= V_SP_NAME & "00" & V_Y_OFS(3 downto 0);
+				SP_PREBUF(conv_integer(SP_NB(5 downto 0))).CG <= SP_CG;
 
 				SP_NB <= SP_NB + 1;
 				SP1 <= SP1_LOOP;
@@ -1341,21 +1185,23 @@ begin
 			case SP2 is
 			when SP2_INI =>
 				SP_BUSY <= '0';
+				if SP2_ACTIVE = '1' or SP_ON = '0' then
+					for I in 0 to MAX_SPPL loop
+						SP_BUF(I).X <= "1111111100"; -- Set off-screen
+					end loop;
+				end if;
 				if SP2_ACTIVE = '1' then
 					SP_BUSY <= '1';
 					SP_CYC <= "00";
 					
-					for I in 0 to 15 loop
-						SP_BUF(I).X <= "1111111100"; -- Set off-screen
-					end loop;
-					SP_CUR <= "0000";
+					SP_CUR <= "000000";
 			
 					SP2 <= SP2_INI_W;
 				end if;
 
 			when SP2_INI_W =>
-				if speedUpSp or CLKEN = '1' then
-					if SP_NB /= "00000" then
+				if CLKEN = '1' then
+					if SP_NB /= "0000000" then
 						SP2 <= SP2_RD0;
 					else
 						SP2 <= SP2_END;
@@ -1378,7 +1224,7 @@ begin
 				SP_BUF(conv_integer(SP_CUR)).P2 <= (others => '0');
 				SP_BUF(conv_integer(SP_CUR)).P3 <= (others => '0');
 				
-				if SP_DW(1) = '1' and SP_PREBUF(conv_integer(SP_CUR)).CG = '1' then
+				if SP_DW(0) = '1' and SP_PREBUF(conv_integer(SP_CUR)).CG = '1' then
 					SP_RAM_A_FF <= V_ADDR(15 downto 6) & "10" & V_ADDR(3 downto 0);
 				else
 					SP_RAM_A_FF <= V_ADDR;
@@ -1391,7 +1237,7 @@ begin
 				end if;
 			
 			when SP2_RD0_W =>
-				if (speedUpSp or CLKEN = '1') and SP_RAM_REQ_FF = SP_RAM_ACK then
+				if SP_RAM_REQ_FF = SP_RAM_ACK then
 					if SP2_ACTIVE = '0' then
 						SP2 <= SP2_END;					
 					else
@@ -1401,6 +1247,11 @@ begin
 							SP_BUF(conv_integer(SP_CUR)).P0 <= SP_RAM_DO;
 							SP2 <= SP2_RD1;
 						when "01" =>
+							if SP_CYC = "01" then
+								SP_BUF(conv_integer(SP_CUR)).P0 <= SP_RAM_DO;
+								SP2 <= SP2_RD3; -- /!\
+							end if;
+						when "10" => -- | "01" =>
 							if SP_CYC = "01" then
 								SP_BUF(conv_integer(SP_CUR)).P0 <= SP_RAM_DO;
 								SP2 <= SP2_RD1;
@@ -1432,7 +1283,7 @@ begin
 				end if;
 				
 			when SP2_RD1_W =>
-				if (speedUpSp or CLKEN = '1') and SP_RAM_REQ_FF = SP_RAM_ACK then
+				if SP_RAM_REQ_FF = SP_RAM_ACK then
 					if SP2_ACTIVE = '0' then
 						SP2 <= SP2_END;					
 					else
@@ -1464,7 +1315,7 @@ begin
 				end if;
 				
 			when SP2_RD2_W =>
-				if (speedUpSp or CLKEN = '1') and SP_RAM_REQ_FF = SP_RAM_ACK then
+				if SP_RAM_REQ_FF = SP_RAM_ACK then
 					if SP2_ACTIVE = '0' then
 						SP2 <= SP2_END;					
 					else
@@ -1487,7 +1338,7 @@ begin
 				
 				SP_CYC <= "00";
 
-				if SP_DW(1) = '1' and SP_PREBUF(conv_integer(SP_CUR)).CG = '0' then
+				if SP_DW(0) = '1' and SP_PREBUF(conv_integer(SP_CUR)).CG = '0' then
 					SP_RAM_A_FF <= V_ADDR(15 downto 6) & "01" & V_ADDR(3 downto 0);
 				else
 					SP_RAM_A_FF <= V_ADDR(15 downto 6) & "11" & V_ADDR(3 downto 0);
@@ -1500,7 +1351,7 @@ begin
 				end if;
 				
 			when SP2_RD3_W =>
-				if (speedUpSp or CLKEN = '1') and SP_RAM_REQ_FF = SP_RAM_ACK then
+				if SP_RAM_REQ_FF = SP_RAM_ACK then
 					if SP2_ACTIVE = '0' then
 						SP2 <= SP2_END;					
 					else
@@ -1509,7 +1360,7 @@ begin
 						when "00" =>
 							SP_BUF(conv_integer(SP_CUR)).P3 <= SP_RAM_DO;
 							SP_BUF(conv_integer(SP_CUR)).X <= SP_PREBUF(conv_integer(SP_CUR)).X;
-							if (SP_CUR = "1111") or ("0" & SP_CUR = SP_NB-1) then
+							if (SP_CUR = "001111" and SP64 = '0') or (SP_CUR = "111111") or ("0" & SP_CUR = SP_NB-1) then
 								SP2 <= SP2_END;
 							else
 								SP_CUR <= SP_CUR + 1;
@@ -1518,9 +1369,21 @@ begin
 							
 						when "01" =>
 							if SP_CYC = "01" then
+								SP_BUF(conv_integer(SP_CUR)).P1 <= SP_RAM_DO;
+								SP_BUF(conv_integer(SP_CUR)).X <= SP_PREBUF(conv_integer(SP_CUR)).X;
+								if (SP_CUR = "001111" and SP64 = '0') or (SP_CUR = "111111") or ("0" & SP_CUR = SP_NB-1) then
+									SP2 <= SP2_END;
+								else
+									SP_CUR <= SP_CUR + 1;
+									SP2 <= SP2_RD0;
+								end if;
+							end if;							
+
+						when "10" =>-- | "01" =>
+							if SP_CYC = "01" then
 								SP_BUF(conv_integer(SP_CUR)).P3 <= SP_RAM_DO;
 								SP_BUF(conv_integer(SP_CUR)).X <= SP_PREBUF(conv_integer(SP_CUR)).X;
-								if (SP_CUR = "1111") or ("0" & SP_CUR = SP_NB-1) then
+								if (SP_CUR = "001111" and SP64 = '0') or (SP_CUR = "111111") or ("0" & SP_CUR = SP_NB-1) then
 									SP2 <= SP2_END;
 								else
 									SP_CUR <= SP_CUR + 1;
@@ -1535,7 +1398,7 @@ begin
 									SP_BUF(conv_integer(SP_CUR)).P3 <= SP_RAM_DO;
 								end if;
 								SP_BUF(conv_integer(SP_CUR)).X <= SP_PREBUF(conv_integer(SP_CUR)).X;
-								if (SP_CUR = "1111") or ("0" & SP_CUR = SP_NB-1) then
+								if (SP_CUR = "001111" and SP64 = '0') or (SP_CUR = "111111") or ("0" & SP_CUR = SP_NB-1) then
 									SP2 <= SP2_END;
 								else
 									SP_CUR <= SP_CUR + 1;
@@ -1593,7 +1456,7 @@ begin
 				end if;
 
 			when REN_BGW =>
-				for I in 0 to 15 loop
+				for I in 0 to MAX_SPPL loop
 					if (X >= SP_BUF(I).X) and (X < SP_BUF(I).X + 16) and SP_ON = '1' then
 						if SP_BUF(I).HF = '0' then
 							V_X := "0000001111" - (X - SP_BUF(I).X);
@@ -1623,62 +1486,18 @@ begin
 				REN <= REN_BGR;
 			
 			when REN_BGR =>
-				if REN_SP_OPQ(0) = '1' then
-					REN_SP_COL <= REN_SP_COLTAB(0)(7 downto 0);
-					REN_SP_PRI <= REN_SP_COLTAB(0)(8);
-				elsif REN_SP_OPQ(1) = '1' then
-					REN_SP_COL <= REN_SP_COLTAB(1)(7 downto 0);
-					REN_SP_PRI <= REN_SP_COLTAB(1)(8);
-				elsif REN_SP_OPQ(2) = '1' then
-					REN_SP_COL <= REN_SP_COLTAB(2)(7 downto 0);
-					REN_SP_PRI <= REN_SP_COLTAB(2)(8);
-				elsif REN_SP_OPQ(3) = '1' then
-					REN_SP_COL <= REN_SP_COLTAB(3)(7 downto 0);
-					REN_SP_PRI <= REN_SP_COLTAB(3)(8);
-				elsif REN_SP_OPQ(4) = '1' then
-					REN_SP_COL <= REN_SP_COLTAB(4)(7 downto 0);
-					REN_SP_PRI <= REN_SP_COLTAB(4)(8);
-				elsif REN_SP_OPQ(5) = '1' then
-					REN_SP_COL <= REN_SP_COLTAB(5)(7 downto 0);
-					REN_SP_PRI <= REN_SP_COLTAB(5)(8);
-				elsif REN_SP_OPQ(6) = '1' then
-					REN_SP_COL <= REN_SP_COLTAB(6)(7 downto 0);
-					REN_SP_PRI <= REN_SP_COLTAB(6)(8);
-				elsif REN_SP_OPQ(7) = '1' then
-					REN_SP_COL <= REN_SP_COLTAB(7)(7 downto 0);
-					REN_SP_PRI <= REN_SP_COLTAB(7)(8);
-				elsif REN_SP_OPQ(8) = '1' then
-					REN_SP_COL <= REN_SP_COLTAB(8)(7 downto 0);
-					REN_SP_PRI <= REN_SP_COLTAB(8)(8);
-				elsif REN_SP_OPQ(9) = '1' then
-					REN_SP_COL <= REN_SP_COLTAB(9)(7 downto 0);
-					REN_SP_PRI <= REN_SP_COLTAB(9)(8);
-				elsif REN_SP_OPQ(10) = '1' then
-					REN_SP_COL <= REN_SP_COLTAB(10)(7 downto 0);
-					REN_SP_PRI <= REN_SP_COLTAB(10)(8);
-				elsif REN_SP_OPQ(11) = '1' then
-					REN_SP_COL <= REN_SP_COLTAB(11)(7 downto 0);
-					REN_SP_PRI <= REN_SP_COLTAB(11)(8);
-				elsif REN_SP_OPQ(12) = '1' then
-					REN_SP_COL <= REN_SP_COLTAB(12)(7 downto 0);
-					REN_SP_PRI <= REN_SP_COLTAB(12)(8);
-				elsif REN_SP_OPQ(13) = '1' then
-					REN_SP_COL <= REN_SP_COLTAB(13)(7 downto 0);
-					REN_SP_PRI <= REN_SP_COLTAB(13)(8);
-				elsif REN_SP_OPQ(14) = '1' then
-					REN_SP_COL <= REN_SP_COLTAB(14)(7 downto 0);
-					REN_SP_PRI <= REN_SP_COLTAB(14)(8);
-				elsif REN_SP_OPQ(15) = '1' then
-					REN_SP_COL <= REN_SP_COLTAB(15)(7 downto 0);
-					REN_SP_PRI <= REN_SP_COLTAB(15)(8);				
-				else
-					REN_SP_COL <= x"00";
-					REN_SP_PRI <= '0';
-				end if;
+				REN_SP_COL <= x"00";
+				REN_SP_PRI <= '0';
+				for I in MAX_SPPL downto 0 loop
+					if REN_SP_OPQ(I) = '1' then
+						REN_SP_COL <= REN_SP_COLTAB(I)(7 downto 0);
+						REN_SP_PRI <= REN_SP_COLTAB(I)(8);
+					end if;
+				end loop;
 				
 				-- Collision
 				if REN_SP_OPQ(0) = '1' 
-				and REN_SP_OPQ(14 downto 0) /= "000000000000000" 
+				and REN_SP_OPQ /= SP_OPQ_Z
 				and SP_BUF(0).ZERO = '1'
 				and IRQ_COL_TRIG = '0'
 				then
@@ -1743,18 +1562,22 @@ begin
 		else
 			case DMA is
 			when DMA_IDLE =>
-				if DMA_ACTIVE = '1' and DMA_REQ = '1' then
+				-- Can VRAM DMA happen at the same time as DMAS, or is paused during DMAS?
+				if BURST = '1' and DMA_REQ = '1' and DMAS_REQ = '0' and DMAS_BUSY='0' then
 					DMA_BUSY <= '1';
 					DMA <= DMA_READ;
 				else
 					DMA_BUSY <= '0';
 				end if;
 			
+			-- Wait state is to make the DMA take 4 dot clocks per transfer
 			when DMA_READ =>
-				DMA_RAM_REQ_FF <= not DMA_RAM_REQ_FF;
-				DMA_RAM_A_FF <= SOUR;
-				DMA_RAM_WE_FF <= '0';
-				DMA <= DMA_READ1;
+				if CLKEN = '1' then
+					DMA_RAM_REQ_FF <= not DMA_RAM_REQ_FF;
+					DMA_RAM_A_FF <= SOUR;
+					DMA_RAM_WE_FF <= '0';
+					DMA <= DMA_READ1;
+				end if;
 				
 			when DMA_READ1 =>
 				if CLKEN = '1' and DMA_RAM_REQ_FF = DMA_RAM_ACK then
@@ -1769,6 +1592,7 @@ begin
 				DMA_RAM_REQ_FF <= not DMA_RAM_REQ_FF;
 				DMA_RAM_A_FF <= DESR;
 				DMA_RAM_WE_FF <= '1';
+				DMA <= DMA_WRITE1;
 
 			when DMA_WRITE1 =>
 				if CLKEN = '1' and DMA_RAM_REQ_FF = DMA_RAM_ACK then
@@ -1782,13 +1606,16 @@ begin
 			when DMA_WRITE2 =>
 				DMA <= DMA_LOOP;
 				
+			-- Wait state is to make the DMA take 4 dot clocks per transfer
 			when DMA_LOOP =>
-				DMA <= DMA_LOOP2;
-				if LENR = x"FFFF" then
-					DMA_DMA_CLR	<= '1';
-					DMA_BUSY <= '0';
-					if DCR(1) = '1' then 
-						IRQ_DMA_SET	<= '1';
+				if CLKEN = '1' then
+					DMA <= DMA_LOOP2;
+					if LENR = x"FFFF" then
+						DMA_DMA_CLR	<= '1';
+						DMA_BUSY <= '0';
+						if DCR(1) = '1' then 
+							IRQ_DMA_SET	<= '1';
+						end if;
 					end if;
 				end if;
 				
@@ -1826,12 +1653,16 @@ begin
 		else
 			case DMAS is
 			when DMAS_IDLE =>
-				if DMAS_ACTIVE = '1'
-				and (DMAS_REQ = '1' or DCR(4) = '1') -- Auto SATB DMA
-				then
+				if BURST = '1' and DMAS_REQ = '1' then
 					DMAS_BUSY <= '1';
 					DMAS_SAT_A <= x"00";
 					DMAS_RAM_A_FF <= SATB;
+					DMAS <= DMAS_WAIT1;
+				end if;
+			
+			-- Wait state is to make the DMAS take 1024 dot clocks
+			when DMAS_WAIT1 =>
+				if CLKEN = '1' then
 					DMAS <= DMAS_READ;
 				end if;
 			
@@ -1841,6 +1672,12 @@ begin
 				
 			when DMAS_READ1 =>
 				if CLKEN = '1' and DMAS_RAM_REQ_FF = DMAS_RAM_ACK then
+					DMAS <= DMAS_WAIT2;
+				end if;
+			
+			-- Wait state is to make the DMAS take 1024 dot clocks
+			when DMAS_WAIT2 =>
+				if CLKEN = '1' then
 					DMAS <= DMAS_READ2;
 				end if;
 			
@@ -1858,17 +1695,18 @@ begin
 						DMAS <= DMAS_END;
 						DMAS_DMAS_CLR <= '1';
 						DMAS_BUSY <= '0';
+					elsif BURST = '0' then --incomplete
+						DMAS <= DMAS_IDLE;
+						DMAS_BUSY <= '0';
 					else
-						DMAS <= DMAS_READ;
+						DMAS <= DMAS_WAIT1;
 					end if;
 				end if;
 			
 			when DMAS_END =>
-				if DMAS_ACTIVE = '0' then
-					DMAS <= DMAS_IDLE;
-					if DCR(0) = '1' then
+				DMAS <= DMAS_IDLE;
+				if DCR(0) = '1' then
 						IRQ_DMAS_SET <= '1';
-					end if;
 				end if;
 			
 			when others => null;
@@ -1882,7 +1720,6 @@ end process;
 -- CPU Interface
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
-BUSY <= BG_BUSY2 or SP_BUSY or DMA_BUSY or DMAS_BUSY;
 IRQ_N_FF <= not ( IRQ_COL or IRQ_OVF or IRQ_RCR or IRQ_DMAS or IRQ_DMA or IRQ_VBL);
 
 process( CLK )
@@ -1903,40 +1740,40 @@ begin
 			MAWR <= x"0000";
 			MARR <= x"0000";
 			
-			VRR <= x"FFFF";
-			VWR <= x"FFFF";
+			--VRR <= x"FFFF";
+			--VWR <= x"FFFF";
 			
 			RCR <= x"0000";
 						
--- Values taken from The Kung Fu
--- CR <= x"00CC";
-CR <= x"0000";
--- MWR <= x"0010";
-MWR <= x"0000";
-HPR <= x"0202";
-HDR <= x"031F";
-VSR <= x"0F02";
-VDR <= x"00EF";
-VDE <= x"0003";
-BXR <= x"0000";
-BYR <= x"0000";			
--- DCR <= x"0010";
-DCR <= x"0000";
---SATB <= x"0800";
-SATB <= x"0000";
+			-- Values taken from The Kung Fu
+			-- CR <= x"00CC";
+			CR <= x"0000";
+			-- MWR <= x"0010";
+			MWR <= x"0000";
+			--HPR <= x"0202";
+			HDR <= x"031F";
+			VSR <= x"0F02";
+			VDR <= x"00EF";
+			--VDE <= x"0003";
+			BXR <= x"0000";
+			BYR <= x"0000";			
+			-- DCR <= x"0010";
+			DCR <= x"0000";
+			--SATB <= x"0800";
+			SATB <= x"0000";
 
--- -- Values taken from BALL.PCE
--- CR <= x"00C8";
--- MWR <= x"0010";
--- HPR <= x"0302";
--- HDR <= x"031F";
--- VSR <= x"1702";
--- VDR <= x"00DF";
--- VDE <= x"000C";
--- BXR <= x"0000";
--- BYR <= x"0000";
--- DCR <= x"0010";
--- SATB <= x"7F00";
+			-- -- Values taken from BALL.PCE
+			-- CR <= x"00C8";
+			-- MWR <= x"0010";
+			-- HPR <= x"0302";
+			-- HDR <= x"031F";
+			-- VSR <= x"1702";
+			-- VDR <= x"00DF";
+			-- VDE <= x"000C";
+			-- BXR <= x"0000";
+			-- BYR <= x"0000";
+			-- DCR <= x"0010";
+			-- SATB <= x"7F00";
 			
 			RD_BUF <= (others => '1');
 			WR_BUF <= (others => '0');
@@ -1987,16 +1824,16 @@ SATB <= x"0000";
 							YOFS_REL_REQ <= '1';
 						when "01001" =>
 							MWR(7 downto 0) <= DI;
-						when "01010" =>
-							HPR(7 downto 0) <= DI;
+						--when "01010" =>
+						--	HPR(7 downto 0) <= DI;
 						when "01011" =>
 							HDR(7 downto 0) <= DI;
 						when "01100" =>
 							VSR(7 downto 0) <= DI;
 						when "01101" =>
 							VDR(7 downto 0) <= DI;
-						when "01110" =>
-							VDE(7 downto 0) <= DI;
+						--when "01110" =>
+							--VDE(7 downto 0) <= DI;
 						when "01111" =>
 							DCR(7 downto 0) <= DI;
 						when "10000" =>
@@ -2010,6 +1847,7 @@ SATB <= x"0000";
 							CPU_LENR_SET_REQ <= '1';
 						when "10011" =>
 							SATB(7 downto 0) <= DI;							
+							CPU_DMAS_REQ <= '1';
 						when others => null;
 						end case;
 					
@@ -2044,16 +1882,16 @@ SATB <= x"0000";
 							YOFS_REL_REQ <= '1';
 						when "01001" =>
 							MWR(15 downto 8) <= DI;
-						when "01010" =>
-							HPR(15 downto 8) <= DI;
+						--when "01010" =>
+						--	HPR(15 downto 8) <= DI;
 						when "01011" =>
 							HDR(15 downto 8) <= DI;
 						when "01100" =>
 							VSR(15 downto 8) <= DI;
 						when "01101" =>
 							VDR(15 downto 8) <= DI;
-						when "01110" =>
-							VDE(15 downto 8) <= DI;
+						--when "01110" =>
+							--VDE(15 downto 8) <= DI;
 						when "01111" =>
 							DCR(15 downto 8) <= DI;
 						when "10000" =>
@@ -2078,11 +1916,11 @@ SATB <= x"0000";
 					-- CPU Read
 					PREV_A <= A;
 					CPU <= CPU_WAIT;
-					DO_FF <= x"FF";
+					DO_FF <= x"00";
 					case A is
 					when "00" =>
 						DO_FF <= "0" 
-							& BUSY 
+							& not BUSY_N_FF -- (0)=CPU will always be stalled when this would be 1
 							& IRQ_VBL
 							& IRQ_DMA
 							& IRQ_DMAS
@@ -2115,14 +1953,14 @@ SATB <= x"0000";
 				end if;
 			
 			when CPU_RAM_PRE_RD =>
-				-- if SP_BUSY = '0' 
-				-- and BG_BUSY = '0'
-				-- and DMAS_BUSY = '0'
-				-- and DMA_BUSY = '0'
-				-- then
+				if SP_BUSY = '0' 
+				and BG_BUSY = '0'
+				and DMAS_BUSY = '0'
+				and DMA_BUSY = '0'
+				then
 					CPU_RAM_REQ_FF <= not CPU_RAM_REQ_FF;
 					CPU <= CPU_RAM_RD;
-				-- end if;
+				end if;
 			
 			when CPU_RAM_RD =>
 				if CPU_RAM_ACK = CPU_RAM_REQ_FF then
@@ -2275,7 +2113,7 @@ begin
 	if rising_edge( CLK ) then
 		if RESET_N = '0' then
 			DMAS_REQ <= '0';
-		elsif CPU_DMAS_REQ = '1' then
+		elsif CPU_DMAS_REQ = '1' or DCR_DMAS_REQ = '1' then
 			DMAS_REQ <= '1';
 		elsif DMAS_DMAS_CLR = '1' then
 			DMAS_REQ <= '0';
@@ -2351,5 +2189,95 @@ BUSY_N <= BUSY_N_FF;
 IRQ_N <= IRQ_N_FF;
 COLNO <= COLNO_FF;
 DO <= DO_FF;
+
+----------------------------------------------------------------
+-- VRAM CONTROLLER
+----------------------------------------------------------------
+vram_req <= vram_req_reg;
+
+-- Get the ack and data one cycle earlier
+BG_RAM_DO <= vram_q when VMC = VMC_BG else BG_DO_REG;
+SP_RAM_DO <= vram_q when VMC = VMC_SP else SP_DO_REG;
+CPU_RAM_DO <= vram_q when VMC = VMC_CPU else CPU_DO_REG;
+DMA_RAM_DO <= vram_q when VMC = VMC_DMA else DMA_DO_REG;
+DMAS_RAM_DO <= vram_q when VMC = VMC_DMAS else DMAS_DO_REG;
+
+BG_RAM_ACK <= BG_RAM_REQ_FF when VMC = VMC_BG and vram_req_reg = vram_ack and RAM_REQ_PROGRESS = '1' else BG_RAM_ACK_REG;
+SP_RAM_ACK <= SP_RAM_REQ_FF when VMC = VMC_SP and vram_req_reg = vram_ack and RAM_REQ_PROGRESS = '1' else SP_RAM_ACK_REG;
+CPU_RAM_ACK <= CPU_RAM_REQ_FF when VMC = VMC_CPU and vram_req_reg = vram_ack and RAM_REQ_PROGRESS = '1' else CPU_RAM_ACK_REG;
+DMA_RAM_ACK <= DMA_RAM_REQ_FF when VMC = VMC_DMA and vram_req_reg = vram_ack and RAM_REQ_PROGRESS = '1' else DMA_RAM_ACK_REG;
+DMAS_RAM_ACK <= DMAS_RAM_REQ_FF when VMC = VMC_DMAS and vram_req_reg = vram_ack and RAM_REQ_PROGRESS = '1' else DMAS_RAM_ACK_REG;
+
+VMC_NEXT <= VMC_BG when BG_RAM_REQ_FF /= BG_RAM_ACK else
+			VMC_SP when SP_RAM_REQ_FF /= SP_RAM_ACK else
+			VMC_CPU when CPU_RAM_REQ_FF /= CPU_RAM_ACK else
+			VMC_DMA when DMA_RAM_REQ_FF /= DMA_RAM_ACK else
+			VMC_DMAS when DMAS_RAM_REQ_FF /= DMAS_RAM_ACK else
+			VMC_IDLE;
+
+process( RESET_N, CLK)
+begin
+	if RESET_N = '0' then
+
+		vram_req_reg <= '0';
+
+		VMC<=VMC_IDLE;
+		RAM_REQ_PROGRESS <= '0';
+	elsif rising_edge(CLK) then
+
+		if vram_req_reg = vram_ack then
+			if RAM_REQ_PROGRESS = '0' then
+				VMC <= VMC_NEXT;
+				case VMC_NEXT is
+				when VMC_IDLE =>
+					null;
+				when VMC_BG =>
+					vram_a <= BG_RAM_A_FF;
+					vram_we <= '0';
+				when VMC_SP =>
+					vram_a <= SP_RAM_A_FF;
+					vram_we <= '0';
+				when VMC_CPU =>
+					vram_a <= CPU_RAM_A_FF;
+					vram_we <= CPU_RAM_WE_FF;
+					vram_d <= CPU_RAM_DI_FF;
+				when VMC_DMA =>
+					vram_a <= DMA_RAM_A_FF;
+					vram_we <= DMA_RAM_WE_FF;
+					vram_d <= DMA_RAM_DI_FF;
+				when VMC_DMAS =>
+					vram_a <= DMAS_RAM_A_FF;
+					vram_we <= '0';
+				end case;
+				if VMC_NEXT /= VMC_IDLE then
+					vram_req_reg <= not vram_req_reg;
+					RAM_REQ_PROGRESS <= '1';
+				end if;
+			else
+				case VMC is
+				when VMC_IDLE =>
+					null;
+				when VMC_BG =>
+					BG_DO_REG <= vram_q;
+					BG_RAM_ACK_REG <= BG_RAM_REQ_FF;
+				when VMC_SP =>
+					SP_DO_REG <= vram_q;
+					SP_RAM_ACK_REG <= SP_RAM_REQ_FF;
+				when VMC_CPU =>
+					CPU_DO_REG <= vram_q;
+					CPU_RAM_ACK_REG <= CPU_RAM_REQ_FF;
+				when VMC_DMA =>
+					DMA_DO_REG <= vram_q;
+					DMA_RAM_ACK_REG <= DMA_RAM_REQ_FF;
+				when VMC_DMAS =>
+					DMAS_DO_REG <= vram_q;
+					DMAS_RAM_ACK_REG <= DMAS_RAM_REQ_FF;
+				when others => null;
+				end case;
+				RAM_REQ_PROGRESS <= '0';
+			end if;
+		end if;
+	end if;
+end process;
 
 end rtl;

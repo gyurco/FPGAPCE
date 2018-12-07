@@ -107,6 +107,8 @@ signal FL_RST_N_FF	: std_logic := '1';
 
 -- VCE signals
 signal VCE_DO		: std_logic_vector(7 downto 0);
+signal HSIZE		: std_logic_vector(9 downto 0);
+signal HSTART		: std_logic_vector(9 downto 0);
 
 -- VDC signals
 signal VDC_DO		: std_logic_vector(7 downto 0);
@@ -221,6 +223,8 @@ VCE : entity work.huc6260 port map(
 	DO 			=> VCE_DO,
 
 	RVBL		=> '0',
+	HSIZE		=> HSIZE,
+	HSTART		=> HSTART,
 
 	-- VDC Interface
 	COLNO		=> VDC_COLNO,
@@ -238,6 +242,9 @@ VCE : entity work.huc6260 port map(
 VDC : entity work.huc6270 port map(
 	CLK 		=> CLK,
 	RESET_N		=> RESET_N,
+	HSIZE		=> HSIZE,
+	HSTART		=> HSTART,
+	SP64		=> '0',
 
 	-- CPU Interface
 	A			=> CPU_A(1 downto 0),
