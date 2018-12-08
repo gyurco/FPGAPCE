@@ -7,10 +7,10 @@ use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.STD_LOGIC_TEXTIO.all;
 use IEEE.NUMERIC_STD.ALL;
 
-
 entity Virtual_Toplevel is
 	generic
 	(
+		casLatency : integer := 2;
 		colAddrBits : integer := 8;
 		rowAddrBits : integer := 12
 	);
@@ -275,8 +275,7 @@ romrd_a_adj <= romrd_a when romhdr = '0' else std_logic_vector(unsigned(romrd_a)
 
 	sdr : entity work.chameleon_sdram
 		generic map (
-			casLatency => 2,
---			casLatency => 3,
+			casLatency => casLatency,
 			colAddrBits => colAddrBits,
 			rowAddrBits => rowAddrBits,
 --			t_ck_ns => 10.0
@@ -287,6 +286,7 @@ romrd_a_adj <= romrd_a when romhdr = '0' else std_logic_vector(unsigned(romrd_a)
 		)
 		port map (
 			clk => SDR_CLK,
+			reset_n => RESET_N,
 
 			reserve => '0',
 
@@ -303,7 +303,7 @@ romrd_a_adj <= romrd_a when romhdr = '0' else std_logic_vector(unsigned(romrd_a)
 			vram_req => VRAM_REQ,
 			vram_ack => VRAM_ACK,
 			vram_we => VRAM_WE,
-			vram_a => "100000" & VRAM_A,
+			vram_a => "10000000" & VRAM_A,
 			vram_d => VRAM_DI,
 			vram_q => VRAM_DO,
 

@@ -263,8 +263,12 @@ begin
     end if;
 end process;
 
-SDRAM_A(12)<='0';
 virtualtoplevel : entity work.Virtual_Toplevel
+	generic map
+	(
+		colAddrBits => 9,
+		rowAddrBits => 13
+	)
 	port map(
         reset => reset,
         CLK => clk42m,
@@ -280,7 +284,7 @@ virtualtoplevel : entity work.Virtual_Toplevel
         DRAM_LDQM => SDRAM_DQML,
         DRAM_BA_1 => SDRAM_BA(1),
         DRAM_BA_0 => SDRAM_BA(0),
-        DRAM_ADDR => SDRAM_A(11 downto 0),
+        DRAM_ADDR => SDRAM_A,
         DRAM_DQ => SDRAM_DQ,
 
         -- Joystick ports (Port_A, Port_B)

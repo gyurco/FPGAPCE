@@ -43,6 +43,7 @@ entity chameleon_sdram is
 	port (
 -- System
 		clk : in std_logic;
+		reset_n: in std_logic;
 
 		reserve : in std_logic := '0';
 		delay_refresh : in std_logic := '0';
@@ -83,7 +84,9 @@ entity chameleon_sdram is
 		
 -- Debug ports
 		debugIdle : out std_logic;  -- '1' memory is idle
-		debugRefresh : out std_logic -- '1' memory is being refreshed
+		debugRefresh : out std_logic; -- '1' memory is being refreshed
+		debugvram_q : out std_logic_vector(15 downto 0);
+		debugcache_q : out std_logic_vector(15 downto 0)
 	);
 end entity;
 
@@ -103,6 +106,7 @@ architecture rtl of chameleon_sdram is
 		RAM_ACTIVATE,
 
 		RAM_READ_1,
+		RAM_READ_CACHE_FILL,
 		RAM_READ_2,
 		RAM_READ_3,
 		RAM_READ_4,
@@ -178,8 +182,65 @@ architecture rtl of chameleon_sdram is
 	signal nextLdqm : std_logic;
 	signal nextUdqm : std_logic;
 
+	signal cache_ack_reg : std_logic := '0';
+	signal cache_write : std_logic := '0';
+	signal cache_writeack : std_logic := '0';
+	signal cache_ready : std_logic;
+	signal cache_req : std_logic;
+	signal cache_req_d : std_logic_vector(1 downto 0);
+	signal cache_ack : std_logic;
+	signal cache_valid : std_logic;
+	signal cache_wr : std_logic;
+	signal cache_wrl : std_logic;
+	signal cache_wrh : std_logic;
+	signal cache_q : std_logic_vector(15 downto 0);
+	signal cache_sdram_req : std_logic;
+	signal cache_fill : std_logic;
+    
+	COMPONENT TwoWayCache
+		PORT (
+			clk                             : IN STD_LOGIC;
+			reset_n                 : IN std_logic;
+			ready                   : out std_logic;
+			cpu_addr                : IN std_logic_vector(31 DOWNTO 0);
+			cpu_req                 : IN STD_LOGIC;
+			cpu_ack         : OUT STD_LOGIC;
+			cpu_cachevalid  : OUT STD_LOGIC;
+			cpu_rw_n                : IN STD_LOGIC;
+			cpu_rwl_n               : in std_logic;
+			cpu_rwu_n               : in std_logic;
+			data_from_cpu   : IN std_logic_vector(15 DOWNTO 0);
+			data_to_cpu     : OUT std_logic_vector(15 DOWNTO 0);
+			data_from_sdram : IN std_logic_vector(15 DOWNTO 0);
+			sdram_req       : OUT STD_LOGIC;
+			sdram_fill      : IN STD_LOGIC
+	);
+	END COMPONENT;
 begin
 
+	mytwc : component TwoWayCache
+	PORT map (
+		clk => clk,
+		reset_n => reset_n,
+		ready => cache_ready,
+		cpu_addr(31 downto colAddrBits+rowAddrBits+3) => (others => '0'),
+		cpu_addr(colAddrBits+rowAddrBits+2 downto 0) => vram_a&'0',
+		cpu_req => cache_req,
+		cpu_ack => cache_ack,
+		cpu_cachevalid => cache_valid,
+		cpu_rw_n => not vram_we,
+		cpu_rwl_n => '0',
+		cpu_rwu_n => '0',
+		data_from_cpu => vram_d,
+		data_to_cpu => cache_q,--vram_q,
+		data_from_sdram => ram_data_reg,
+		sdram_req => cache_sdram_req,
+		sdram_fill => cache_fill
+	);
+	cache_req <= '1' when (vram_req /= vram_ackReg) and (currentPort /= PORT_VRAM) and cache_ack = '0' else '0';
+
+	debugvram_q <= vram_qReg;
+	debugcache_q <= cache_q;
 -- -----------------------------------------------------------------------
 
 	ram_data_reg <= sd_data;
@@ -216,7 +277,7 @@ begin
 			nextLdqm <= '0';
 			nextUdqm <= '0';
 
-			if (vram_req /= vram_ackReg) and (currentPort /= PORT_VRAM) then --GE
+			if (vram_req /= vram_ackReg) and (currentPort /= PORT_VRAM) and (vram_we = '1' or cache_sdram_req = '1') then
 				nextRamState <= RAM_READ_1;
 				if vram_we = '1' then
 					nextRamState <= RAM_WRITE_1;
@@ -274,12 +335,14 @@ begin
 			sd_ras_n_reg <= '1';
 			sd_cas_n_reg <= '1';
 			sd_we_n_reg <= '1';
-			
+
 			sd_ba_0_reg <= '0';
 			sd_ba_1_reg <= '0';
 
 			sd_ldqm_reg <= '0';
 			sd_udqm_reg <= '0';
+
+			cache_fill <= '0';
 
 			if ramTimer /= 0 then
 				ramTimer <= ramTimer - 1;
@@ -391,31 +454,26 @@ begin
 					bankActive(to_integer(unsigned(currentBank))) <= '1';
 
 				when RAM_READ_1 =>
-					ramTimer <= casLatency + 1;
-					ramState <= RAM_READ_2;
+					if currentPort = PORT_VRAM then
+						ramTimer <= casLatency;
+						ramState <= RAM_READ_CACHE_FILL;
+					else
+						ramTimer <= casLatency + 1;
+						ramState <= RAM_READ_2;
+					end if;
 					sd_addr_reg <= std_logic_vector(resize(unsigned(currentCol), sd_addr'length));
 					--GE sd_addr_reg <= resize(currentCol, sd_addr'length) or resize("10000000000", sd_addr'length); --GE Auto precharge
 					sd_cas_n_reg <= '0';
 					sd_ba_0_reg <= currentBank(0);
 					sd_ba_1_reg <= currentBank(1);
 
+				when RAM_READ_CACHE_FILL =>
+					cache_fill <= '1';
+					ramState <= RAM_READ_2;
+
 				when RAM_READ_2 =>
 					ramState <= RAM_READ_3;
 					currentRdData(15 downto 0) <= ram_data_reg;
-					case currentPort is
-					when PORT_VRAM => --GE
-						vram_qReg <= ram_data_reg;
-						ramDone <= '1';
-						sd_we_n_reg <= '0'; -- abort burst
-						sd_cas_n_reg <= '1';
-						sd_ras_n_reg <= '1';
-						ramState <= RAM_IDLE;
-					when PORT_ROMWR => --GE
-						romwr_qReg <= ram_data_reg;
-						ramDone <= '1';
-					when others =>
-						null;
-					end case;
 
 				when RAM_READ_3 =>
 					ramState <= RAM_READ_4;
@@ -428,13 +486,7 @@ begin
 				when RAM_READ_5 =>
 					currentRdData(63 downto 48) <= ram_data_reg;
 					ramState <= RAM_IDLE;
-
-					case currentPort is
-					when PORT_VRAM | PORT_ROMWR => --GE
-						null;
-					when others =>
-						ramDone <= '1';
-					end case;
+					ramDone <= '1';
 
 				when RAM_WRITE_1 =>
 					ramState <= RAM_IDLE;
@@ -484,14 +536,17 @@ begin
 	process(clk)
 	begin
 		if rising_edge(clk) then
-			if currentPort = PORT_VRAM
-			and ramDone = '1' then
-				vram_ackReg <= not vram_ackReg;
+			if (currentPort = PORT_VRAM and ((vram_we='1' and ramDone = '1') or (vram_we='0' and cache_ack = '1')))
+			or (cache_valid = '1' and cache_ack = '1' and vram_we = '0')
+			--if (currentPort = PORT_VRAM and ramDone = '1')
+			then
+				vram_ackReg <= vram_req;
 			end if;
 		end if;
 	end process;
 	vram_ack <= vram_ackReg;
-	vram_q <= vram_qReg; --GE
+	vram_q <= cache_q;
+--	vram_q <= vram_qReg;
 
 	process(clk)
 	begin
