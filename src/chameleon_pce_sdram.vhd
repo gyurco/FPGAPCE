@@ -266,7 +266,10 @@ begin
 
 -- -----------------------------------------------------------------------
 -- State machine
-	process(clk)
+	process(clk, currentPort, cache_sdram_req,
+		vram_a, vram_we, vram_req, vram_ackReg,
+		romrd_a, romrd_req, romrd_ackReg,
+		romwr_a, romwr_we, romwr_req, romwr_ackReg)
 	begin
 		--if rising_edge(clk) then
 			nextRamState <= RAM_IDLE;

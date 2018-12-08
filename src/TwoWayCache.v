@@ -116,10 +116,6 @@ wire [10:0] cacheline1;
 wire [10:0] cacheline2;
 
 reg [10:3] latched_cpuaddr;
-reg [15:0] firstword;
-
-//assign data_to_cpu = (readword_burst ? firstword :
-//									((tag_hit1 && data_valid1) ? data_port1_r[15:0] : data_port2_r[15:0]));
 
 assign cpu_cachevalid = ((tag_hit1 && data_valid1) || (tag_hit2 && data_valid2)) && !readword_burst;
 								
@@ -336,7 +332,6 @@ begin
 			if (sdram_fill==1'b1)
 			begin
 				sdram_req<=1'b0;
-				firstword <= data_from_sdram;
 				data_to_cpu <= data_from_sdram;
 				cpu_ack<=1'b1; // Too soon?
 
