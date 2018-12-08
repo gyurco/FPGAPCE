@@ -100,7 +100,8 @@ TOP_BL_LINES <= TOP_BL_LINES_E when RVBL = '1' else TOP_BL_LINES_E+3;
 DISP_LINES   <= DISP_LINES_E   when RVBL = '1' else DISP_LINES_E-10;
 
 -- Color RAM
-ram : entity work.colram port map(
+ram : entity work.DualPortRam generic map (9,9)
+port map(
 	clock			=> CLK,
 
 	address_a	=> RAM_A,

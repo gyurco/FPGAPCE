@@ -433,8 +433,8 @@ begin
 --------------------------------------------------------------------------------
 -- Background line buffer
 --------------------------------------------------------------------------------
-
-bg_buf : entity work.linebuf port map(
+bg_buf : entity work.DualPortRam generic map (10,8)
+port map (
 	clock		=> CLK,
 	
 	address_a	=> BG2_MEM_A,
@@ -443,7 +443,7 @@ bg_buf : entity work.linebuf port map(
 	q_a			=> open,
 	
 	address_b	=> REN_MEM_A,
-	data_b		=> "00000000",
+	data_b		=> (others => '0'),
 	wren_b		=> REN_MEM_WE,
 	q_b			=> REN_MEM_DO
 );
@@ -451,15 +451,18 @@ bg_buf : entity work.linebuf port map(
 --------------------------------------------------------------------------------
 -- SAT
 --------------------------------------------------------------------------------
-sat : entity work.satram port map(
+sat : entity work.DualPortRam generic map (8,16)
+port map (
 	clock		=> CLK,
 	
-	data		=> DMAS_SAT_DI,
-	wraddress	=> DMAS_SAT_A,
-	wren		=> DMAS_SAT_WE,
-	
-	rdaddress	=> SP_SAT_A,
-	q			=> SP_SAT_DO
+	data_a		=> DMAS_SAT_DI,
+	address_a	=> DMAS_SAT_A,
+	wren_a		=> DMAS_SAT_WE,
+
+	data_b		=> (others => '0'),
+	address_b	=> SP_SAT_A,
+	q_b			=> SP_SAT_DO,
+	wren_b		=> '0'
 );
 
 --------------------------------------------------------------------------------

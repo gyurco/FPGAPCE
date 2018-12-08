@@ -202,12 +202,17 @@ CPU : entity work.huc6280 port map(
 );
 
 -- RAM
-RAM : entity work.ram port map(
-	address	=> RAM_A,
-	clock	=> CLK,
-	data	=> RAM_DI,
-	wren	=> RAM_WE,
-	q		=> RAM_DO
+RAM : entity work.DualPortRam generic map (13,8)
+port map(
+	clock		=> CLK,
+	address_a	=> RAM_A,
+	data_a		=> RAM_DI,
+	wren_a		=> RAM_WE,
+	q_a			=> RAM_DO,
+
+	address_b	=> (others => '0'),
+	data_b		=> (others => '0'),
+	wren_b		=> '0'
 );
 
 VCE : entity work.huc6260 port map(
