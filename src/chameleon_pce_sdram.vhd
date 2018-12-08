@@ -99,8 +99,9 @@ architecture rtl of chameleon_sdram is
 		RAM_INITAUTO2,
 		RAM_SETMODE,
 		RAM_IDLE,
-		
-		RAM_ACTIVE,
+
+		RAM_ACTIVATE,
+
 		RAM_READ_1,
 		RAM_READ_2,
 		RAM_READ_3,
@@ -108,7 +109,6 @@ architecture rtl of chameleon_sdram is
 		RAM_READ_5,
 		RAM_WRITE_1,
 		
-		RAM_PRECHARGE,
 		RAM_PRECHARGE_ALL,
 		RAM_AUTOREFRESH
 	);
@@ -222,8 +222,8 @@ begin
 					nextRamState <= RAM_WRITE_1;
 				end if;
 				nextRamPort <= PORT_VRAM;
-				nextRamBank <= vram_a((colAddrBits+rowAddrBits+2) downto (colAddrBits+rowAddrBits+1));
-				nextRamRow <= vram_a((colAddrBits+rowAddrBits) downto (colAddrBits+1));
+				nextRamBank <= '1' & vram_a(colAddrBits+1);
+				nextRamRow <= vram_a((colAddrBits+1+rowAddrBits) downto (colAddrBits+2));
 				nextRamCol <= vram_a(colAddrBits downto 1);
 			elsif (romwr_req /= romwr_ackReg) and (currentPort /= PORT_ROMWR) then
 				nextRamState <= RAM_READ_1;
@@ -231,15 +231,15 @@ begin
 					nextRamState <= RAM_WRITE_1;
 				end if;
 				nextRamPort <= PORT_ROMWR;
-				nextRamBank <= romwr_a((colAddrBits+rowAddrBits+2) downto (colAddrBits+rowAddrBits+1));
-				nextRamRow <= romwr_a((colAddrBits+rowAddrBits) downto (colAddrBits+1));
+				nextRamBank <= '0' & romwr_a(colAddrBits+1);
+				nextRamRow <= romwr_a((colAddrBits+1+rowAddrBits) downto (colAddrBits+2));
 				nextRamCol <= romwr_a(colAddrBits downto 1);
 
 			elsif (romrd_req /= romrd_ackReg) and (currentPort /= PORT_ROMRD) then
 				nextRamState <= RAM_READ_1;
 				nextRamPort <= PORT_ROMRD;
-				nextRamBank <= romrd_a((colAddrBits+rowAddrBits+2) downto (colAddrBits+rowAddrBits+1));
-				nextRamRow <= romrd_a((colAddrBits+rowAddrBits) downto (colAddrBits+1));
+				nextRamBank <= '0' & romrd_a(colAddrBits+1);
+				nextRamRow <= romrd_a((colAddrBits+1+rowAddrBits) downto (colAddrBits+2));
 				nextRamCol <= romrd_a(colAddrBits downto 3) & "00";
 				
 			end if;
@@ -280,7 +280,7 @@ begin
 
 			sd_ldqm_reg <= '0';
 			sd_udqm_reg <= '0';
-			
+
 			if ramTimer /= 0 then
 				ramTimer <= ramTimer - 1;
 			else
@@ -338,7 +338,7 @@ begin
 						currentCol <= nextRamCol;
 						currentLdqm <= nextLdqm;
 						currentUdqm <= nextUdqm;
-						
+
 						case nextRamPort is
 						when PORT_VRAM => --GE
 							currentWrData <= vram_d;
@@ -347,16 +347,28 @@ begin
 						when others =>
 							null;
 						end case;
-
 						ramState <= nextRamState;
+
 						if bankActive(to_integer(unsigned(nextRamBank))) = '0' then
 							-- Current bank not active. Activate a row first
-							ramState <= RAM_ACTIVE;
+							ramTimer <= 2;
+							sd_addr_reg <= nextRamRow;
+							sd_ras_n_reg <= '0';
+							sd_ba_0_reg <= nextRamBank(0);
+							sd_ba_1_reg <= nextRamBank(1);
+							bankRow(to_integer(unsigned(nextRamBank))) <= nextRamRow;
+							bankActive(to_integer(unsigned(nextRamBank))) <= '1';
 						elsif bankRow(to_integer(unsigned(nextRamBank))) /= nextRamRow then
 							-- Wrong row active in bank, do precharge then activate a row.
-							ramState <= RAM_PRECHARGE;
+							ramTimer <= 2;
+							sd_we_n_reg <= '0';
+							sd_ras_n_reg <= '0';
+							sd_ba_0_reg <= nextRamBank(0);
+							sd_ba_1_reg <= nextRamBank(1);
+							bankActive(to_integer(unsigned(nextRamBank))) <= '0';
+							ramState <= RAM_ACTIVATE;
 						end if;
-					elsif (delay_refresh = '0') and (reserve = '0') and (refreshTimer > refresh_interval) then
+					elsif delay_refresh = '0' and reserve = '0' and refreshTimer > refresh_interval then
 						-- Refresh timeout, perform auto-refresh cycle
 						refreshActive <= '1';
 						refreshSubtract <= '1';
@@ -367,8 +379,9 @@ begin
 							ramState <= RAM_AUTOREFRESH;
 						end if;
 					end if;
-				when RAM_ACTIVE =>
-					ramTimer <= 2;
+
+				when RAM_ACTIVATE =>
+					ramTimer <= 1;
 					ramState <= currentState;
 					sd_addr_reg <= currentRow;
 					sd_ras_n_reg <= '0';
@@ -376,6 +389,7 @@ begin
 					sd_ba_1_reg <= currentBank(1);
 					bankRow(to_integer(unsigned(currentBank))) <= currentRow;
 					bankActive(to_integer(unsigned(currentBank))) <= '1';
+
 				when RAM_READ_1 =>
 					ramTimer <= casLatency + 1;
 					ramState <= RAM_READ_2;
@@ -384,6 +398,7 @@ begin
 					sd_cas_n_reg <= '0';
 					sd_ba_0_reg <= currentBank(0);
 					sd_ba_1_reg <= currentBank(1);
+
 				when RAM_READ_2 =>
 					ramState <= RAM_READ_3;
 					currentRdData(15 downto 0) <= ram_data_reg;
@@ -401,23 +416,26 @@ begin
 					when others =>
 						null;
 					end case;
+
 				when RAM_READ_3 =>
 					ramState <= RAM_READ_4;
 					currentRdData(31 downto 16) <= ram_data_reg;
+
 				when RAM_READ_4 =>
 					ramState <= RAM_READ_5;
 					currentRdData(47 downto 32) <= ram_data_reg;
+
 				when RAM_READ_5 =>
 					currentRdData(63 downto 48) <= ram_data_reg;
 					ramState <= RAM_IDLE;
--- /!\
+
 					case currentPort is
 					when PORT_VRAM | PORT_ROMWR => --GE
 						null;
 					when others =>
 						ramDone <= '1';
 					end case;
--- /!\
+
 				when RAM_WRITE_1 =>
 					ramState <= RAM_IDLE;
 					sd_data_ena <= '1';
@@ -434,14 +452,6 @@ begin
 					sd_udqm_reg <= currentUdqm;
 					ramDone <= '1';
 
-				when RAM_PRECHARGE =>
-					ramTimer <= 2;
-					ramState <= RAM_ACTIVE;
-					sd_we_n_reg <= '0';
-					sd_ras_n_reg <= '0';				
-					sd_ba_0_reg <= currentBank(0);
-					sd_ba_1_reg <= currentBank(1);
-					bankActive(to_integer(unsigned(currentBank))) <= '0';
 				when RAM_PRECHARGE_ALL =>
 					ramTimer <= 2;
 					ramState <= RAM_IDLE;
