@@ -136,15 +136,16 @@ signal romwr_ack : std_logic;
 signal romwr_a : unsigned(addrwidth downto 1);
 signal romwr_d : std_logic_vector(15 downto 0);
 
+signal rombank : std_logic_vector(1 downto 0); -- SF2+ bank
 signal romrd_req : std_logic := '0';
 signal romrd_ack : std_logic;
-signal romrd_a : std_logic_vector(addrwidth downto 3);
+signal romrd_a : std_logic_vector(21 downto 3);
 signal romrd_q : std_logic_vector(63 downto 0);
-signal romrd_a_cached : std_logic_vector(addrwidth downto 3);
+signal romrd_a_cached : std_logic_vector(21 downto 3);
 signal romrd_q_cached : std_logic_vector(63 downto 0);
 signal rommap : std_logic_vector(1 downto 0);
 signal romhdr : std_logic;
-signal romrd_a_adj  : std_logic_vector(addrwidth downto 3);
+signal romrd_a_adj  : std_logic_vector(21 downto 3);
 
 signal FL_DQ : std_logic_vector(15 downto 0);
 
@@ -320,7 +321,7 @@ romrd_a_adj <= romrd_a when romhdr = '0' else std_logic_vector(unsigned(romrd_a)
 
 			romrd_req => romrd_req,
 			romrd_ack => romrd_ack,
-			romrd_a => romrd_a_adj,
+			romrd_a => "000" & romrd_a_adj,
 			romrd_q => romrd_q,
 
 			initDone => SDR_INIT_DONE,
@@ -345,6 +346,25 @@ CPU_DI <= RAM_DO when CPU_RD_N = '0' and CPU_RAM_SEL_N = '0'
 	else VDC_DO when CPU_RD_N = '0' and CPU_VDC_SEL_N = '0'
 	else x"FF";
 
+romrd_a <=    "00"&CPU_A(19 downto 3)                                         when rommap = "00" -- straight mapping
+        else "000"&CPU_A(19)&(CPU_A(17) and not CPU_A(19))&CPU_A(16 downto 3) when rommap = "01" -- 384K
+        else "00" &CPU_A(19)&(CPU_A(18) and not CPU_A(19))&CPU_A(17 downto 3) when rommap = "10" -- 768K
+        else (CPU_A(19) and (rombank(0) and rombank(1)))
+            &(CPU_A(19) and (rombank(0) xor rombank(1)))
+            &(CPU_A(19) and not rombank(0))&CPU_A(18 downto 3);                                  -- SF2
+
+-- SF2+ mapper
+process( CLK, RESET_N ) begin
+	if RESET_N = '0' then
+		rombank <= "00";
+	elsif rising_edge(CLK) then
+		-- CPU_A(12 downto 2) = X"7FC" means CPU_A & 0x1FFC = 0x1FF0
+		if CPU_A(20) = '0' and ('0' & CPU_A(12 downto 2)) = X"7FC" and CPU_WR_N = '0' then
+			rombank <= CPU_A(1 downto 0);
+		end if;
+	end if;
+end process;
+
 process( CLK )
 begin
 	if rising_edge( CLK ) then
@@ -366,8 +386,9 @@ begin
 					else 
 						CPU_A_PREV <= (others => '1');
 					end if;
+
 					if CPU_A(20) = '0' and CPU_RD_N = '0' and CPU_A /= CPU_A_PREV then
-						if CPU_A(19 downto 3) = romrd_a_cached(19 downto 3) then
+						if romrd_a = romrd_a_cached then
 							case CPU_A(2 downto 0) is
 								when "000" =>
 									ROM_DO <= romrd_q_cached(7 downto 0);
@@ -389,31 +410,7 @@ begin
 							end case;						
 						else
 							romrd_req <= not romrd_req;
-							romrd_a<=(others=>'0');
-							romrd_a(19 downto 3) <= CPU_A(19 downto 3);
-							-- Perform address mangling to mimic HuCard chip mapping.
-							-- rommap => 00  -  Straight mapping
-							-- rommap => 01  -  384K ROM, split in 3, mapped ABABCCCC
-							-- rommap => 10  -  768K ROM, straight mapping for now
-							-- rommap => 11  -  not yet defined.
-							
-							if rommap="01" then                       -- bits 19 downto 16
-								-- 00000 -> 20000  => 00000 -> 20000		0000 -> 0000
-								-- 20000 -> 40000  => 20000 -> 40000		0010 -> 0010
-								-- 40000 -> 60000  => 00000 -> 20000		0100 -> 0000
-								-- 60000 -> 80000  => 20000 -> 40000		0110 -> 0010
-								-- 80000 -> A0000  => 40000 -> 60000		1000 -> 0100
-								-- A0000 -> C0000  => 40000 -> 60000		1010 -> 0100
-								-- C0000 -> E0000  => 40000 -> 60000		1100 -> 0100
-								-- E0000 ->100000  => 40000 -> 60000		1110 -> 0100
-								romrd_a(19)<='0';
-								romrd_a(18)<=CPU_A(19);
-								romrd_a(17)<=CPU_A(17) and not CPU_A(19);
-							end if;
-								
-
-							romrd_a_cached<=(others=>'0');
-							romrd_a_cached(19 downto 3) <= CPU_A(19 downto 3);
+							romrd_a_cached <= romrd_a;
 							ROM_RDY <= '0';
 							romState <= ROM_READ;
 						end if;
@@ -450,7 +447,6 @@ begin
 	end if;
 end process;
 
-
 -- Boot process
 
 FL_DQ<=ext_data;
@@ -481,11 +477,13 @@ begin
 						bootState <= BOOT_WRITE_1;
 					end if;
 					if ext_bootdone='1' then
-						case romwr_a(19 downto 16) is
-						when x"6" =>
+						case romwr_a(21 downto 16) is
+						when "00"&x"6" =>
 							rommap <= "01"; -- 384K ROM
-						when x"c" =>
+						when "00"&x"c" =>
 							rommap <= "10"; -- 768K ROM
+						when "10"&x"8" =>
+							rommap <= "11"; -- SF2+
 						when others =>
 							rommap <= "00";
 						end case;
