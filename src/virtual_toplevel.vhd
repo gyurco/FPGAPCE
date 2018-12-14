@@ -120,11 +120,12 @@ signal VDC_COLNO	: std_logic_vector(8 downto 0);
 signal VDC_CLKEN	: std_logic;
 
 signal VRAM_REQ	: std_logic;
-signal VRAM_A	: std_logic_vector(15 downto 0);
+signal VRAM_A	: std_logic_vector(16 downto 1);
 signal VRAM_DO	: std_logic_vector(15 downto 0); -- Output from RAM
 signal VRAM_DI	: std_logic_vector(15 downto 0);
 signal VRAM_WE	: std_logic;
 signal VRAM_ACK	: std_logic;
+signal VRAM_A_PAD : std_logic_vector(addrwidth downto 17);
 
 signal SDR_INIT_DONE	: std_logic;
 
@@ -133,7 +134,7 @@ signal bootState : bootStates := BOOT_DONE;
 
 signal romwr_req : std_logic := '0';
 signal romwr_ack : std_logic;
-signal romwr_a : unsigned(addrwidth downto 1);
+signal romwr_a : unsigned(21 downto 1);
 signal romwr_d : std_logic_vector(15 downto 0);
 
 signal rombank : std_logic_vector(1 downto 0); -- SF2+ bank
@@ -146,6 +147,7 @@ signal romrd_q_cached : std_logic_vector(63 downto 0);
 signal rommap : std_logic_vector(1 downto 0);
 signal romhdr : std_logic;
 signal romrd_a_adj  : std_logic_vector(21 downto 3);
+signal roma_pad : std_logic_vector(addrwidth downto 22);
 
 signal FL_DQ : std_logic_vector(15 downto 0);
 
@@ -278,6 +280,8 @@ VDC : entity work.huc6270 port map(
 );
 
 romrd_a_adj <= romrd_a when romhdr = '0' else std_logic_vector(unsigned(romrd_a) + 64);
+roma_pad <= (others => '0');
+VRAM_A_PAD <= (addrwidth => '1', others => '0');
 
 	sdr : entity work.chameleon_sdram
 		generic map (
@@ -309,19 +313,19 @@ romrd_a_adj <= romrd_a when romhdr = '0' else std_logic_vector(unsigned(romrd_a)
 			vram_req => VRAM_REQ,
 			vram_ack => VRAM_ACK,
 			vram_we => VRAM_WE,
-			vram_a => "10000000" & VRAM_A,
+			vram_a => VRAM_A_PAD & VRAM_A,
 			vram_d => VRAM_DI,
 			vram_q => VRAM_DO,
 
 			romwr_req => romwr_req,
 			romwr_ack => romwr_ack,
 			romwr_we => '1',
-			romwr_a => std_logic_vector(romwr_a),
+			romwr_a => roma_pad & std_logic_vector(romwr_a),
 			romwr_d => romwr_d,
 
 			romrd_req => romrd_req,
 			romrd_ack => romrd_ack,
-			romrd_a => "000" & romrd_a_adj,
+			romrd_a => roma_pad & romrd_a_adj,
 			romrd_q => romrd_q,
 
 			initDone => SDR_INIT_DONE,
@@ -465,7 +469,7 @@ begin
 			romhdr <= '0';
 			
 			romwr_req <= '0';
-			romwr_a <= to_unsigned(0, addrwidth);
+			romwr_a <= (others => '0');
 			bootState<=BOOT_READ_1;
 			
 		else
