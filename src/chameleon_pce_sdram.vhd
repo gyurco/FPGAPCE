@@ -36,7 +36,9 @@ entity chameleon_sdram is
 		-- Controller settings
 		initTimeout : integer := 10000;
 	-- SDRAM timing
-		casLatency : integer := 3;
+		casLatency : integer := 2;
+		rasCasTiming : integer := 2;
+		prechargeTiming: integer := 2;
 		t_refresh_ms  : real := 64.0;
 		t_ck_ns  : real := 10.0 -- Clock cycle time
 	);
@@ -417,7 +419,7 @@ begin
 
 						if bankActive(to_integer(unsigned(nextRamBank))) = '0' then
 							-- Current bank not active. Activate a row first
-							ramTimer <= 2;
+							ramTimer <= rasCasTiming - 1;
 							sd_addr_reg <= nextRamRow;
 							sd_ras_n_reg <= '0';
 							sd_ba_0_reg <= nextRamBank(0);
@@ -426,7 +428,7 @@ begin
 							bankActive(to_integer(unsigned(nextRamBank))) <= '1';
 						elsif bankRow(to_integer(unsigned(nextRamBank))) /= nextRamRow then
 							-- Wrong row active in bank, do precharge then activate a row.
-							ramTimer <= 2;
+							ramTimer <= prechargeTiming - 1;
 							sd_we_n_reg <= '0';
 							sd_ras_n_reg <= '0';
 							sd_ba_0_reg <= nextRamBank(0);
@@ -447,7 +449,7 @@ begin
 					end if;
 
 				when RAM_ACTIVATE =>
-					ramTimer <= 1;
+					ramTimer <= rasCasTiming - 1;
 					ramState <= currentState;
 					sd_addr_reg <= currentRow;
 					sd_ras_n_reg <= '0';
@@ -508,7 +510,7 @@ begin
 					ramDone <= '1';
 
 				when RAM_PRECHARGE_ALL =>
-					ramTimer <= 2;
+					ramTimer <= prechargeTiming - 1;
 					ramState <= RAM_IDLE;
 					if refreshActive = '1' then
 						ramTimer <= 1;

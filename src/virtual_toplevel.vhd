@@ -11,8 +11,15 @@ entity Virtual_Toplevel is
 	generic
 	(
 		casLatency : integer := 2;
+		rasCasTiming : integer := 2;
+		prechargeTiming : integer := 2;
 		colAddrBits : integer := 8;
-		rowAddrBits : integer := 12
+		rowAddrBits : integer := 12;
+--		t_ck_ns : real := 10.0  -- 100 MHz
+--		t_ck_ns : real := 6.7   -- 150 MHz
+		t_ck_ns : real := 11.7  --  85 MHz
+--		t_ck_ns : real := 23.5
+--		t_ck_ns : real := 7.9   -- 126 MHz
 	);
 	port(
 		reset : in std_logic;
@@ -286,13 +293,11 @@ VRAM_A_PAD <= (addrwidth => '1', others => '0');
 	sdr : entity work.chameleon_sdram
 		generic map (
 			casLatency => casLatency,
+			rasCasTiming => rasCasTiming,
+			prechargeTiming => prechargeTiming,
 			colAddrBits => colAddrBits,
 			rowAddrBits => rowAddrBits,
---			t_ck_ns => 10.0
---			t_ck_ns => 6.7
 			t_ck_ns => 11.7
---			t_ck_ns => 23.5
---			t_ck_ns => 8.3	
 		)
 		port map (
 			clk => SDR_CLK,
