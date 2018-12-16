@@ -2516,7 +2516,8 @@ calcAddr: process(clk)
 	myAddrDecrH <= myAddr(15 downto 8) - 1;
 
 	--GE addr <= myAddr;
-	addr <= x"FF" & myAddr(12 downto 0) when vdcAddr = '1'
+	addr <= x"FF00" & vdcn & myAddr(3 downto 0) when vdcAddr = '1'
+	--addr <= x"FF" & myAddr(12 downto 0) when vdcAddr = '1'
 		else MPR(to_integer(myAddr(15 downto 13))) & myAddr(12 downto 0); --GE
 
 	debugA <= A;

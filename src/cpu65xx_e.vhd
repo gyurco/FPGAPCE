@@ -35,7 +35,9 @@ entity cpu65xx is
 		irq1_n : in std_logic; --GE HuC6280
 		irq2_n : in std_logic; --GE HuC6280 replaces irq_n
 		tiq_n : in std_logic;  --GE HuC6280
-		
+
+		vdcn : in std_logic;
+
 		so_n : in std_logic := '1';
 
 		di : in unsigned(7 downto 0);

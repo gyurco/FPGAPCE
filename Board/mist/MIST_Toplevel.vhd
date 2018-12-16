@@ -102,6 +102,7 @@ signal downloading      : std_logic;
 signal data_io_wr       : std_logic;
 signal data_io_clkref   : std_logic;
 signal data_io_d        : std_logic_vector(7 downto 0);
+signal data_io_index	: std_logic_vector(7 downto 0);
 signal downloadingD     : std_logic;
 signal d_state          : std_logic_vector(1 downto 0);
 
@@ -115,6 +116,7 @@ signal ext_sw           : std_logic_vector( 15 downto 0); --DIP switches
 
 constant CONF_STR : string :=
     "TGFX16;BINPCE;"&
+    "F,SGX,Load;"&
     "OBC,Scanlines,Off,25%,50%,75%;"&
     --"O6,Joystick swap,Off,On;"&
     "O2,ROM data swap,Off,On;"&
@@ -241,16 +243,17 @@ begin
 
   U00 : entity work.pll
     port map(
-        inclk0 => CLOCK_27(0),       -- 27 MHz external
+        inclk0 => CLOCK_27(0),    -- 27 MHz external
         c0     => clk42m,         -- 42.8 internal
-        c1     => memclk,         -- 100Mhz
-        c2     => SDRAM_CLK,        -- 100Mhz external
+        c1     => memclk,         -- 126Mhz
+        c2     => SDRAM_CLK,      -- 126Mhz external
         locked => pll_locked
     );
 
 ext_sw(0) <= '1'; -- 15kHz output
 ext_sw(2) <= status(2); -- rom data swap
 ext_sw(4) <= status(4); -- multitap
+ext_sw(5) <= data_io_index(1); -- SGX mode
 
 -- reset from IO controller
 -- status bit 0 is always triggered by the i ocontroller on its own reset
@@ -410,7 +413,7 @@ data_io_inst: data_io
         a       => open,
         d       => data_io_d,
         downloading => downloading,
-        index   => open,
+        index   => data_io_index,
 
         sck     => SPI_SCK,
         ss      => SPI_SS2,

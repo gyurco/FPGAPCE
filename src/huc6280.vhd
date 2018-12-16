@@ -31,6 +31,8 @@ entity huc6280 is
 		CEB_N		: out std_logic; -- BRM
 		CEI_N		: out std_logic; -- I/O
 
+		VDCNUM  : in std_logic;
+
 		K			: in std_logic_vector(7 downto 0);
 		O			: out std_logic_vector(7 downto 0);
 		
@@ -124,6 +126,7 @@ CPU: entity work.cpu65xx(fast)
 		irq1_n 		=> CPU_IRQ1_N,
 		irq2_n 		=> CPU_IRQ2_N,
 		tiq_n			=> CPU_TIQ_N,
+		vdcn		=> VDCNUM,
 
 		di 			=> unsigned(CPU_DI),
 		do 			=> CPU_DO_U,

@@ -17,9 +17,9 @@ entity Virtual_Toplevel is
 		rowAddrBits : integer := 12;
 --		t_ck_ns : real := 10.0  -- 100 MHz
 --		t_ck_ns : real := 6.7   -- 150 MHz
---		t_ck_ns : real := 11.7  --  85 MHz
+		t_ck_ns : real := 11.7  --  85 MHz
 --		t_ck_ns : real := 23.5
-		t_ck_ns : real := 7.9   -- 126 MHz
+--		t_ck_ns : real := 7.9   -- 126 MHz
 	);
 	port(
 		reset : in std_logic;
@@ -94,14 +94,17 @@ signal CPU_CLKEN	: std_logic;
 signal CPU_RDY		: std_logic;
 
 signal CPU_VCE_SEL_N	: std_logic;
+signal CPU_VPC_SEL_N	: std_logic;
 signal CPU_VDC_SEL_N	: std_logic;
+signal CPU_VDC0_SEL_N	: std_logic;
+signal CPU_VDC1_SEL_N	: std_logic;
 signal CPU_RAM_SEL_N	: std_logic;
 
 signal CPU_IO_DI		: std_logic_vector(7 downto 0);  -- bit 6: country, bits 3-0: joypad data
 signal CPU_IO_DO		: std_logic_vector(7 downto 0);  -- bit 1: clr, bit 0: sel
 
 -- RAM signals
-signal RAM_A		: std_logic_vector(12 downto 0);
+signal RAM_A		: std_logic_vector(14 downto 0);
 signal RAM_DI		: std_logic_vector(7 downto 0);
 signal RAM_WE		: std_logic;
 signal RAM_DO		: std_logic_vector(7 downto 0);
@@ -118,21 +121,36 @@ signal HSIZE		: std_logic_vector(9 downto 0);
 signal HSTART		: std_logic_vector(9 downto 0);
 
 -- VDC signals
-signal VDC_DO		: std_logic_vector(7 downto 0);
 signal VDC_BUSY_N	: std_logic;
 signal VDC_IRQ_N	: std_logic;
-
--- VDC signals
 signal VDC_COLNO	: std_logic_vector(8 downto 0);
+signal VDC0_DO		: std_logic_vector(7 downto 0);
+signal VDC0_BUSY_N	: std_logic;
+signal VDC0_IRQ_N	: std_logic;
+signal VDC0_COLNO	: std_logic_vector(8 downto 0);
+signal VDC1_DO		: std_logic_vector(7 downto 0);
+signal VDC1_BUSY_N	: std_logic;
+signal VDC1_IRQ_N	: std_logic;
+signal VDC1_COLNO	: std_logic_vector(8 downto 0);
+signal VDCNUM		: std_logic;
 signal VDC_CLKEN	: std_logic;
 
-signal VRAM_REQ	: std_logic;
-signal VRAM_A	: std_logic_vector(16 downto 1);
-signal VRAM_DO	: std_logic_vector(15 downto 0); -- Output from RAM
-signal VRAM_DI	: std_logic_vector(15 downto 0);
-signal VRAM_WE	: std_logic;
-signal VRAM_ACK	: std_logic;
-signal VRAM_A_PAD : std_logic_vector(addrwidth downto 17);
+signal VPC_DO		: std_logic_vector(7 downto 0);
+
+signal VRAM0_REQ	: std_logic;
+signal VRAM0_A	: std_logic_vector(16 downto 1);
+signal VRAM0_DO	: std_logic_vector(15 downto 0); -- Output from RAM
+signal VRAM0_DI	: std_logic_vector(15 downto 0);
+signal VRAM0_WE	: std_logic;
+signal VRAM0_ACK	: std_logic;
+signal VRAM1_REQ	: std_logic;
+signal VRAM1_A	: std_logic_vector(16 downto 1);
+signal VRAM1_DO	: std_logic_vector(15 downto 0); -- Output from RAM
+signal VRAM1_DI	: std_logic_vector(15 downto 0);
+signal VRAM1_WE	: std_logic;
+signal VRAM1_ACK	: std_logic;
+signal VRAM0_A_PAD : std_logic_vector(addrwidth downto 17);
+signal VRAM1_A_PAD : std_logic_vector(addrwidth downto 17);
 
 signal SDR_INIT_DONE	: std_logic;
 
@@ -168,12 +186,14 @@ signal ROM_DO	: std_logic_vector(7 downto 0);
 signal gamepad_port : unsigned(2 downto 0);
 signal multitap : std_logic;
 signal prev_sel : std_logic;
+signal SGX : std_logic;
 
 begin
 
 -- Bit flipping switch
 BITFLIP <= ext_sw(2);
 multitap <= ext_sw(4);
+sgx <= ext_sw(5);
 
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
@@ -187,6 +207,8 @@ CPU : entity work.huc6280 port map(
 	NMI_N	=> CPU_NMI_N,
 	IRQ1_N	=> CPU_IRQ1_N,
 	IRQ2_N	=> CPU_IRQ2_N,
+
+	VDCNUM  => VDCNUM,
 
 	DI		=> CPU_DI,
 	DO 		=> CPU_DO,
@@ -212,7 +234,7 @@ CPU : entity work.huc6280 port map(
 );
 
 -- RAM
-RAM : entity work.DualPortRam generic map (13,8)
+RAM : entity work.DualPortRam generic map (15,8)
 port map(
 	clock		=> CLK,
 	address_a	=> RAM_A,
@@ -254,7 +276,7 @@ VCE : entity work.huc6260 port map(
 );
 
 
-VDC : entity work.huc6270 port map(
+VDC0 : entity work.huc6270 port map(
 	CLK 		=> CLK,
 	RESET_N		=> RESET_N,
 	HSIZE		=> HSIZE,
@@ -263,32 +285,91 @@ VDC : entity work.huc6270 port map(
 
 	-- CPU Interface
 	A			=> CPU_A(1 downto 0),
-	CE_N		=> CPU_VDC_SEL_N,
+	CE_N		=> CPU_VDC0_SEL_N,
 	WR_N		=> CPU_WR_N,
 	RD_N		=> CPU_RD_N,
 	DI			=> CPU_DO,
-	DO 			=> VDC_DO,
-	BUSY_N		=> VDC_BUSY_N,
-	IRQ_N		=> VDC_IRQ_N,
+	DO 			=> VDC0_DO,
+	BUSY_N		=> VDC0_BUSY_N,
+	IRQ_N		=> VDC0_IRQ_N,
 
-	vram_req	=> VRAM_REQ,
-	vram_a		=> VRAM_A,
-	vram_q		=> VRAM_DO,
-	vram_d		=> VRAM_DI,
-	vram_we		=> VRAM_WE,
-	vram_ack	=> VRAM_ACK,
+	vram_req	=> VRAM0_REQ,
+	vram_a		=> VRAM0_A,
+	vram_q		=> VRAM0_DO,
+	vram_d		=> VRAM0_DI,
+	vram_we		=> VRAM0_WE,
+	vram_ack	=> VRAM0_ACK,
 
 	-- VCE Interface
-	COLNO		=> VDC_COLNO,
+	COLNO		=> VDC0_COLNO,
 	CLKEN		=> VDC_CLKEN,
 	HS_N		=> HS,
 	VS_N		=> VS
 
 );
 
+VDC1 : entity work.huc6270 port map(
+	CLK 		=> CLK,
+	RESET_N		=> RESET_N,
+	HSIZE		=> HSIZE,
+	HSTART		=> HSTART,
+	SP64		=> '0',
+
+	-- CPU Interface
+	A			=> CPU_A(1 downto 0),
+	CE_N		=> CPU_VDC1_SEL_N,
+	WR_N		=> CPU_WR_N,
+	RD_N		=> CPU_RD_N,
+	DI			=> CPU_DO,
+	DO 			=> VDC1_DO,
+	BUSY_N		=> VDC1_BUSY_N,
+	IRQ_N		=> VDC1_IRQ_N,
+
+	vram_req	=> VRAM1_REQ,
+	vram_a		=> VRAM1_A,
+	vram_q		=> VRAM1_DO,
+	vram_d		=> VRAM1_DI,
+	vram_we		=> VRAM1_WE,
+	vram_ack	=> VRAM1_ACK,
+
+	-- VCE Interface
+	COLNO		=> VDC1_COLNO,
+	CLKEN		=> VDC_CLKEN,
+	HS_N		=> HS,
+	VS_N		=> VS
+
+);
+
+VPC : entity work.huc6202
+port map(
+	CLK 		=> CLK,
+	CLKEN		=> VDC_CLKEN,
+	RESET_N	=> RESET_N,
+
+	-- CPU Interface
+	A			=> CPU_A(2 downto 0),
+	CE_N		=> CPU_VPC_SEL_N,
+	WR_N		=> CPU_WR_N,
+	RD_N		=> CPU_RD_N,
+	DI			=> CPU_DO,
+	DO 		=> VPC_DO,
+
+	HS_N		=> HS,
+	VDC0_IN  => VDC0_COLNO,
+	VDC1_IN  => VDC1_COLNO,
+	VDC_OUT  => VDC_COLNO,
+
+	VDCNUM   => VDCNUM
+);
+
+CPU_VDC0_SEL_N <= CPU_VDC_SEL_N or     CPU_A(3) or     CPU_A(4) when SGX = '1' else CPU_VDC_SEL_N;
+CPU_VDC1_SEL_N <= CPU_VDC_SEL_N or     CPU_A(3) or not CPU_A(4) when SGX = '1' else '1';
+CPU_VPC_SEL_N  <= CPU_VDC_SEL_N or not CPU_A(3) or     CPU_A(4) when SGX = '1' else '1';
+
 romrd_a_adj <= romrd_a when romhdr = '0' else std_logic_vector(unsigned(romrd_a) + 64);
 roma_pad <= (others => '0');
-VRAM_A_PAD <= (addrwidth => '1', others => '0');
+VRAM0_A_PAD <= (addrwidth => '1', others => '0');
+VRAM1_A_PAD <= (addrwidth => '1', addrwidth-1 => '1', others => '0');
 
 	sdr : entity work.chameleon_sdram
 		generic map (
@@ -297,7 +378,7 @@ VRAM_A_PAD <= (addrwidth => '1', others => '0');
 			prechargeTiming => prechargeTiming,
 			colAddrBits => colAddrBits,
 			rowAddrBits => rowAddrBits,
-			t_ck_ns => 11.7
+			t_ck_ns => t_ck_ns
 		)
 		port map (
 			clk => SDR_CLK,
@@ -315,12 +396,19 @@ VRAM_A_PAD <= (addrwidth => '1', others => '0');
 			sd_ldqm => DRAM_LDQM,
 			sd_udqm => DRAM_UDQM,
 
-			vram_req => VRAM_REQ,
-			vram_ack => VRAM_ACK,
-			vram_we => VRAM_WE,
-			vram_a => VRAM_A_PAD & VRAM_A,
-			vram_d => VRAM_DI,
-			vram_q => VRAM_DO,
+			vram0_req => VRAM0_REQ,
+			vram0_ack => VRAM0_ACK,
+			vram0_we => VRAM0_WE,
+			vram0_a => VRAM0_A_PAD & VRAM0_A,
+			vram0_d => VRAM0_DI,
+			vram0_q => VRAM0_DO,
+
+			vram1_req => VRAM1_REQ,
+			vram1_ack => VRAM1_ACK,
+			vram1_we => VRAM1_WE,
+			vram1_a => VRAM1_A_PAD & VRAM1_A,
+			vram1_d => VRAM1_DI,
+			vram1_q => VRAM1_DO,
 
 			romwr_req => romwr_req,
 			romwr_ack => romwr_ack,
@@ -344,15 +432,17 @@ DRAM_CS_N <= '0';
 
 -- Interrupt signals
 CPU_NMI_N <= '1';
-CPU_IRQ1_N <= VDC_IRQ_N;
+CPU_IRQ1_N <= VDC0_IRQ_N and VDC1_IRQ_N;
 CPU_IRQ2_N <= '1';
-CPU_RDY <= VDC_BUSY_N and ROM_RDY;
+CPU_RDY <= VDC0_BUSY_N and VDC1_BUSY_N and ROM_RDY;
 
 -- CPU data bus
 CPU_DI <= RAM_DO when CPU_RD_N = '0' and CPU_RAM_SEL_N = '0' 
 	else ROM_DO when CPU_RD_N = '0' and CPU_A(20) = '0'
 	else VCE_DO when CPU_RD_N = '0' and CPU_VCE_SEL_N = '0'
-	else VDC_DO when CPU_RD_N = '0' and CPU_VDC_SEL_N = '0'
+	else VDC0_DO when CPU_RD_N = '0' and CPU_VDC0_SEL_N = '0'
+	else VDC1_DO when CPU_RD_N = '0' and CPU_VDC1_SEL_N = '0'
+	else VPC_DO  when CPU_RD_N = '0' and CPU_VPC_SEL_N  = '0'
 	else x"FF";
 
 romrd_a <=    "00"&CPU_A(19 downto 3)                                         when rommap = "00" -- straight mapping
@@ -541,7 +631,8 @@ end process;
 
 
 -- Block RAM
-RAM_A <= CPU_A(12 downto 0);
+RAM_A(12 downto 0)  <= CPU_A(12 downto 0);
+RAM_A(14 downto 13) <= CPU_A(14 downto 13) when SGX = '1' else "00";
 RAM_DI <= CPU_DO;
 process( CLK )
 begin
