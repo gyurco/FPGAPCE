@@ -47,11 +47,11 @@ entity Virtual_Toplevel is
 		VS		: buffer std_logic;
 		HS		: buffer std_logic;
 
-		joya : in std_logic_vector(7 downto 0) := (others =>'1');
-		joyb : in std_logic_vector(7 downto 0) := (others =>'1');
-		joyc : in std_logic_vector(7 downto 0) := (others =>'1');
-		joyd : in std_logic_vector(7 downto 0) := (others =>'1');
-		joye : in std_logic_vector(7 downto 0) := (others =>'1');
+		joya : in std_logic_vector(11 downto 0) := (others =>'1');
+		joyb : in std_logic_vector(11 downto 0) := (others =>'1');
+		joyc : in std_logic_vector(11 downto 0) := (others =>'1');
+		joyd : in std_logic_vector(11 downto 0) := (others =>'1');
+		joye : in std_logic_vector(11 downto 0) := (others =>'1');
 
         -- ROM Loader / Host boot data
         ext_reset_n    : in std_logic := '1';
@@ -185,13 +185,16 @@ signal ROM_DO	: std_logic_vector(7 downto 0);
 
 signal gamepad_port : unsigned(2 downto 0);
 signal multitap : std_logic;
-signal prev_sel : std_logic;
+signal sixbutton_en : std_logic;
+signal sixbutton_sel : std_logic;
+signal prev_sel : std_logic_vector(1 downto 0);
 signal SGX : std_logic;
 
 begin
 
 -- Bit flipping switch
 BITFLIP <= ext_sw(2);
+sixbutton_en <= ext_sw(3);
 multitap <= ext_sw(4);
 sgx <= ext_sw(5);
 
@@ -648,42 +651,36 @@ end process;
 -- I/O Port
 CPU_IO_DI(7 downto 4) <= "1011"; -- No CD-Rom unit, TGFX-16
 CPU_IO_DI(3 downto 0) <=
-	joya(7) & joya(6) & joya(4) & joya(5)
-		when CPU_IO_DO(1 downto 0) = "00" and gamepad_port = "000"
-	else joya(2) & joya(1) & joya(3) & joya(0)
-		when CPU_IO_DO(1 downto 0) = "01" and gamepad_port = "000"
-		
-	else joyb(7) & joyb(6) & joyb(4) & joyb(5)
-		when CPU_IO_DO(1 downto 0) = "00" and gamepad_port = "001"
-	else joyb(2) & joyb(1) & joyb(3) & joyb(0)
-		when CPU_IO_DO(1 downto 0) = "01" and gamepad_port = "001"
-		
-	else joyc(7) & joyc(6) & joyc(4) & joyc(5)
-		when CPU_IO_DO(1 downto 0) = "00" and gamepad_port = "010"
-	else joyc(2) & joyc(1) & joyc(3) & joyc(0)
-		when CPU_IO_DO(1 downto 0) = "01" and gamepad_port = "010"
-		
-	else joyd(7) & joyd(6) & joyd(4) & joyd(5)
-		when CPU_IO_DO(1 downto 0) = "00" and gamepad_port = "011"
-	else joyd(2) & joyd(1) & joyd(3) & joyd(0)
-		when CPU_IO_DO(1 downto 0) = "01" and gamepad_port = "011"
-
-	else joye(7) & joye(6) & joye(4) & joye(5)
-		when CPU_IO_DO(1 downto 0) = "00" and gamepad_port = "100"
-	else joye(2) & joye(1) & joye(3) & joye(0)
-		when CPU_IO_DO(1 downto 0) = "01" and gamepad_port = "100"
-		
-	else "1111";
+	"0000"            when CPU_IO_DO(1) = '1' or (CPU_IO_DO(0) = '1' and sixbutton_sel = '1') else
+	joya( 7 downto 4) when CPU_IO_DO(1 downto 0) = "00" and sixbutton_sel = '0' and gamepad_port = "000" else
+	joya( 3 downto 0) when CPU_IO_DO(1 downto 0) = "01" and sixbutton_sel = '0' and gamepad_port = "000" else
+	joya(11 downto 8) when CPU_IO_DO(1 downto 0) = "00" and sixbutton_sel = '1' and gamepad_port = "000" else
+	joyb( 7 downto 4) when CPU_IO_DO(1 downto 0) = "00" and sixbutton_sel = '0' and gamepad_port = "001" else
+	joyb( 3 downto 0) when CPU_IO_DO(1 downto 0) = "01" and sixbutton_sel = '0' and gamepad_port = "001" else
+	joyb(11 downto 8) when CPU_IO_DO(1 downto 0) = "00" and sixbutton_sel = '1' and gamepad_port = "001" else
+	joyc( 7 downto 4) when CPU_IO_DO(1 downto 0) = "00" and sixbutton_sel = '0' and gamepad_port = "010" else
+	joyc( 3 downto 0) when CPU_IO_DO(1 downto 0) = "01" and sixbutton_sel = '0' and gamepad_port = "010" else
+	joyc(11 downto 8) when CPU_IO_DO(1 downto 0) = "00" and sixbutton_sel = '1' and gamepad_port = "010" else
+	joyd( 7 downto 4) when CPU_IO_DO(1 downto 0) = "00" and sixbutton_sel = '0' and gamepad_port = "011" else
+	joyd( 3 downto 0) when CPU_IO_DO(1 downto 0) = "01" and sixbutton_sel = '0' and gamepad_port = "011" else
+	joyd(11 downto 8) when CPU_IO_DO(1 downto 0) = "00" and sixbutton_sel = '1' and gamepad_port = "011" else
+	joye( 7 downto 4) when CPU_IO_DO(1 downto 0) = "00" and sixbutton_sel = '0' and gamepad_port = "100" else
+	joye( 3 downto 0) when CPU_IO_DO(1 downto 0) = "01" and sixbutton_sel = '0' and gamepad_port = "100" else
+	joye(11 downto 8) when CPU_IO_DO(1 downto 0) = "00" and sixbutton_sel = '1' and gamepad_port = "100" else
+	"1111";
 
 process(clk)
 begin
 	if rising_edge(clk) then
 		if CPU_IO_DO(1)='1' then -- reset pad
 			gamepad_port<=(others => '0');
-		elsif prev_sel='0' and CPU_IO_DO(0)='1' and multitap='1' then -- Rising edge of select bit
+			if prev_sel(1)='0' then
+				sixbutton_sel <= not sixbutton_sel and sixbutton_en;
+			end if;
+		elsif prev_sel(0)='0' and CPU_IO_DO(0)='1' and multitap='1' then -- Rising edge of select bit
 			gamepad_port<=gamepad_port+1;
 		end if;
-		prev_sel<=CPU_IO_DO(0);
+		prev_sel<=CPU_IO_DO(1 downto 0);
 	end if;
 
 end process;

@@ -86,11 +86,11 @@ signal joy_1: std_logic_vector(31 downto 0);
 signal joy_2: std_logic_vector(31 downto 0);
 signal joy_3: std_logic_vector(31 downto 0);
 signal joy_4: std_logic_vector(31 downto 0);
-signal joyn_0: std_logic_vector(7 downto 0);
-signal joyn_1: std_logic_vector(7 downto 0);
-signal joyn_2: std_logic_vector(7 downto 0);
-signal joyn_3: std_logic_vector(7 downto 0);
-signal joyn_4: std_logic_vector(7 downto 0);
+signal joyn_0: std_logic_vector(11 downto 0);
+signal joyn_1: std_logic_vector(11 downto 0);
+signal joyn_2: std_logic_vector(11 downto 0);
+signal joyn_3: std_logic_vector(11 downto 0);
+signal joyn_4: std_logic_vector(11 downto 0);
 signal joy_ana_0: std_logic_vector(15 downto 0);
 signal joy_ana_1: std_logic_vector(15 downto 0);
 
@@ -120,6 +120,7 @@ constant CONF_STR : string :=
     "OBC,Scanlines,Off,25%,50%,75%;"&
     --"O6,Joystick swap,Off,On;"&
     "O2,ROM data swap,Off,On;"&
+    "O3,6 Buttons,Disable,Enable;"&
     "O4,Multitap,Off,On;"&
     "T0,Reset;";
 
@@ -252,6 +253,7 @@ begin
 
 ext_sw(0) <= '1'; -- 15kHz output
 ext_sw(2) <= status(2); -- rom data swap
+ext_sw(3) <= status(3); -- 6 buttons
 ext_sw(4) <= status(4); -- multitap
 ext_sw(5) <= data_io_index(1); -- SGX mode
 
@@ -465,11 +467,11 @@ begin
 end process;
 
 -- swap, invert and remap joystick bits
- joyn_0 <= not joy_1(7) & not joy_1(6) & not joy_1(5) & not joy_1(4) & not joy_1(0) & not joy_1(1) & not joy_1(2) & not joy_1(3);
- joyn_1 <= not joy_0(7) & not joy_0(6) & not joy_0(5) & not joy_0(4) & not joy_0(0) & not joy_0(1) & not joy_0(2) & not joy_0(3); 
- joyn_2 <= not joy_2(7) & not joy_2(6) & not joy_2(5) & not joy_2(4) & not joy_2(0) & not joy_2(1) & not joy_2(2) & not joy_2(3);
- joyn_3 <= not joy_3(7) & not joy_3(6) & not joy_3(5) & not joy_3(4) & not joy_3(0) & not joy_3(1) & not joy_3(2) & not joy_3(3);
- joyn_4 <= not joy_4(7) & not joy_4(6) & not joy_4(5) & not joy_4(4) & not joy_4(0) & not joy_4(1) & not joy_4(2) & not joy_4(3);
+ joyn_0 <= not joy_1(11 downto 8) & not joy_1(7) & not joy_1(6) & not joy_1(4) & not joy_1(5) & not joy_1(1) & not joy_1(2) & not joy_1(0) & not joy_1(3);
+ joyn_1 <= not joy_0(11 downto 8) & not joy_0(7) & not joy_0(6) & not joy_0(4) & not joy_0(5) & not joy_0(1) & not joy_0(2) & not joy_0(0) & not joy_0(3);
+ joyn_2 <= not joy_2(11 downto 8) & not joy_2(7) & not joy_2(6) & not joy_2(4) & not joy_2(5) & not joy_2(1) & not joy_2(2) & not joy_2(0) & not joy_2(3);
+ joyn_3 <= not joy_3(11 downto 8) & not joy_3(7) & not joy_3(6) & not joy_3(4) & not joy_3(5) & not joy_3(1) & not joy_3(2) & not joy_3(0) & not joy_3(3);
+ joyn_4 <= not joy_4(11 downto 8) & not joy_4(7) & not joy_4(6) & not joy_4(4) & not joy_4(5) & not joy_4(1) & not joy_4(2) & not joy_4(0) & not joy_4(3);
 
 -- Do we have audio?  If so, instantiate a two DAC channels.
 leftsd: component hybrid_pwm_sd
