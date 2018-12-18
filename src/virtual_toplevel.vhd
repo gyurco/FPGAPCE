@@ -38,8 +38,8 @@ entity Virtual_Toplevel is
 		DRAM_UDQM	: out std_logic;
 		DRAM_WE_N	: out std_logic;
 		
-		DAC_LDATA : out std_logic_vector(15 downto 0);
-		DAC_RDATA : out std_logic_vector(15 downto 0);
+		DAC_LDATA : out std_logic_vector(23 downto 0);
+		DAC_RDATA : out std_logic_vector(23 downto 0);
 		
 		R		: out std_logic_vector(2 downto 0);
 		G		: out std_logic_vector(2 downto 0);

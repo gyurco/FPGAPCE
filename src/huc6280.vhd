@@ -36,8 +36,8 @@ entity huc6280 is
 		K			: in std_logic_vector(7 downto 0);
 		O			: out std_logic_vector(7 downto 0);
 		
-		AUD_LDATA: out std_logic_vector(15 downto 0);
-		AUD_RDATA: out std_logic_vector(15 downto 0)
+		AUD_LDATA: out std_logic_vector(23 downto 0);
+		AUD_RDATA: out std_logic_vector(23 downto 0)
 	);
 end huc6280;
 
@@ -366,7 +366,8 @@ PSG : entity work.psg port map (
 	DI			=> CPU_DO(7 downto 0),
 	A			=> CPU_A(3 downto 0),
 	WE			=> CPU_WE and CLKEN_FF and not PSG_SEL_N,
-	
+
+	DAC_LATCH=> '1',
 	LDATA		=> AUD_LDATA,
 	RDATA		=> AUD_RDATA
 );

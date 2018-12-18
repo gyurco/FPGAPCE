@@ -51,8 +51,8 @@ signal pll_locked   : std_logic;
 signal clk42m       : std_logic;
 signal memclk       : std_logic;
 
-signal audiol : std_logic_vector(15 downto 0);
-signal audior : std_logic_vector(15 downto 0);
+signal audiol : std_logic_vector(23 downto 0);
+signal audior : std_logic_vector(23 downto 0);
 --
 signal pce_red : std_logic_vector(2 downto 0);
 signal pce_green : std_logic_vector(2 downto 0);
@@ -479,7 +479,7 @@ leftsd: component hybrid_pwm_sd
 	(
 		clk => memclk,
 		n_reset => reset,
-		din => not audiol(15) & std_logic_vector(audiol(14 downto 0)),
+		din => not audiol(23) & std_logic_vector(audiol(22 downto 8)),
 		dout => AUDIO_L
 	);
 
@@ -488,7 +488,7 @@ rightsd: component hybrid_pwm_sd
 	(
 		clk => memclk,
 		n_reset => reset,
-		din => not audior(15) & std_logic_vector(audior(14 downto 0)),
+		din => not audior(23) & std_logic_vector(audior(22 downto 8)),
 		dout => AUDIO_R
 	);
 
