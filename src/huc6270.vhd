@@ -553,7 +553,7 @@ begin
 					X_REN_START <= V_HDS;
 					X_REN_END   <= V_HDS + V_HDW;
 					-- BG must start before REN (max 2*8 tile reads, plus render overhead)
-					X_BG_START  <= V_HDS - "10101";
+					X_BG_START  <= V_HDS - "11111";
 
 					-- Raster counter
 					RCNT := RCNT + 1;
