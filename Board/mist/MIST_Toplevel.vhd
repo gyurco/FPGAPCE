@@ -467,11 +467,11 @@ begin
 end process;
 
 -- swap, invert and remap joystick bits
- joyn_0 <= not joy_1(11 downto 8) & not joy_1(7) & not joy_1(6) & not joy_1(4) & not joy_1(5) & not joy_1(1) & not joy_1(2) & not joy_1(0) & not joy_1(3);
- joyn_1 <= not joy_0(11 downto 8) & not joy_0(7) & not joy_0(6) & not joy_0(4) & not joy_0(5) & not joy_0(1) & not joy_0(2) & not joy_0(0) & not joy_0(3);
- joyn_2 <= not joy_2(11 downto 8) & not joy_2(7) & not joy_2(6) & not joy_2(4) & not joy_2(5) & not joy_2(1) & not joy_2(2) & not joy_2(0) & not joy_2(3);
- joyn_3 <= not joy_3(11 downto 8) & not joy_3(7) & not joy_3(6) & not joy_3(4) & not joy_3(5) & not joy_3(1) & not joy_3(2) & not joy_3(0) & not joy_3(3);
- joyn_4 <= not joy_4(11 downto 8) & not joy_4(7) & not joy_4(6) & not joy_4(4) & not joy_4(5) & not joy_4(1) & not joy_4(2) & not joy_4(0) & not joy_4(3);
+ joyn_0 <= not joy_1(11 downto 4) & not joy_1(1) & not joy_1(2) & not joy_1(0) & not joy_1(3);
+ joyn_1 <= not joy_0(11 downto 4) & not joy_0(1) & not joy_0(2) & not joy_0(0) & not joy_0(3);
+ joyn_2 <= not joy_2(11 downto 4) & not joy_2(1) & not joy_2(2) & not joy_2(0) & not joy_2(3);
+ joyn_3 <= not joy_3(11 downto 4) & not joy_3(1) & not joy_3(2) & not joy_3(0) & not joy_3(3);
+ joyn_4 <= not joy_4(11 downto 4) & not joy_4(1) & not joy_4(2) & not joy_4(0) & not joy_4(3);
 
 -- Do we have audio?  If so, instantiate a two DAC channels.
 leftsd: component hybrid_pwm_sd
