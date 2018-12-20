@@ -1,3 +1,18 @@
+This is a continuation of Alastair Robinson's FPGAPCE fork, focusing mainly
+on the MiST board. Contains CPU, VDP and other fixes from the MiSTer project.
+Other board's code and the ZPUFlex controller still in the repo, but there
+were no efforts to make them work. Fixing them would be highly appreciated.
+
+Features:
+
+- Standard MiST OSD and ARM ROM downloading
+- SuperGrafx support
+- 384K, 768K and SF2 special ROM mapper support
+- Multitap up to 5 controllers (4 reported to work)
+- 6 buttons controller support
+
+Previous README:
+================
 
 PLEASE NOTE - this is a fork of the original FPGA PC Engine core, which adds
 a second CPU and an on-screen display menu for setting options and selecting
