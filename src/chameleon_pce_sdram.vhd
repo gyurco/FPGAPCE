@@ -142,17 +142,6 @@ architecture rtl of chameleon_sdram is
 	
 	signal ram_data_reg : std_logic_vector(sd_data'range);
 
--- Registered sdram signals
-	signal sd_data_reg : std_logic_vector(15 downto 0);
-	signal sd_data_ena : std_logic := '0';
-	signal sd_addr_reg : std_logic_vector((rowAddrBits-1) downto 0);
-	signal sd_we_n_reg : std_logic;
-	signal sd_ras_n_reg : std_logic;
-	signal sd_cas_n_reg : std_logic;
-	signal sd_ba_0_reg : std_logic;
-	signal sd_ba_1_reg : std_logic;
-	signal sd_ldqm_reg : std_logic;
-	signal sd_udqm_reg : std_logic;
 --GE
 	signal vram0_ackReg : std_logic := '0';
 	signal vram1_ackReg : std_logic := '0';
@@ -260,7 +249,7 @@ begin
 		cpu_rwu_n => '0',
 		data_from_cpu => vram0_d,
 		data_to_cpu => cache0_q,--vram_q,
-		data_from_sdram => ram_data_reg,
+		data_from_sdram => sd_data,
 		sdram_req => cache0_sdram_req,
 		sdram_fill => cache0_fill
 	);
@@ -281,7 +270,7 @@ begin
 		cpu_rwu_n => '0',
 		data_from_cpu => vram1_d,
 		data_to_cpu => cache1_q,--vram_q,
-		data_from_sdram => ram_data_reg,
+		data_from_sdram => sd_data,
 		sdram_req => cache1_sdram_req,
 		sdram_fill => cache1_fill
 	);
@@ -371,37 +360,19 @@ begin
 	process(clk)
 	begin
 		if rising_edge(clk) then
-			sd_data <= (others => 'Z');
-			if sd_data_ena = '1' then
-				sd_data <= sd_data_reg;
-			end if;
-			sd_addr <= sd_addr_reg;
-			sd_ras_n <= sd_ras_n_reg;
-			sd_cas_n <= sd_cas_n_reg;
-			sd_we_n <= sd_we_n_reg;
-			sd_ba_0 <= sd_ba_0_reg;
-			sd_ba_1 <= sd_ba_1_reg;
-			sd_ldqm <= sd_ldqm_reg;
-			sd_udqm <= sd_udqm_reg;
-		end if;
-	end process;
-
-	process(clk)
-	begin
-		if rising_edge(clk) then
 			refreshSubtract <= '0';
 			ramDone <= '0';
-			sd_data_ena <= '0';
-			sd_addr_reg <= (others => '0');
-			sd_ras_n_reg <= '1';
-			sd_cas_n_reg <= '1';
-			sd_we_n_reg <= '1';
+			sd_data <= (others => 'Z');
+			sd_addr <= (others => '0');
+			sd_ras_n <= '1';
+			sd_cas_n <= '1';
+			sd_we_n <= '1';
 
-			sd_ba_0_reg <= '0';
-			sd_ba_1_reg <= '0';
+			sd_ba_0 <= '0';
+			sd_ba_1 <= '0';
 
-			sd_ldqm_reg <= '0';
-			sd_udqm_reg <= '0';
+			sd_ldqm <= '0';
+			sd_udqm <= '0';
 
 			cache0_fill <= '0';
 			cache1_fill <= '0';
@@ -423,34 +394,34 @@ begin
 					-- Precharge all banks, part of initialisation sequence.
 					ramTimer <= 100;
 					ramState <= RAM_INITAUTO1;
-					sd_ras_n_reg <= '0';
-					sd_we_n_reg <= '0';
-					sd_addr_reg(10) <= '1'; -- precharge all banks
+					sd_ras_n <= '0';
+					sd_we_n <= '0';
+					sd_addr(10) <= '1'; -- precharge all banks
 				when RAM_INITAUTO1 =>
 					-- refresh cycle to init ram (1st)
 					ramTimer <= 10;
 					ramState <= RAM_INITAUTO2;
-					sd_we_n_reg <= '0';
-					sd_ras_n_reg <= '0';
-					sd_cas_n_reg <= '0';				
+					sd_we_n <= '0';
+					sd_ras_n <= '0';
+					sd_cas_n <= '0';
 				when RAM_INITAUTO2 =>
 					-- refresh cycle to init ram (2nd)
 					ramTimer <= 10;
 					ramState <= RAM_SETMODE;
-					sd_we_n_reg <= '0';
-					sd_ras_n_reg <= '0';
-					sd_cas_n_reg <= '0';
+					sd_we_n <= '0';
+					sd_ras_n <= '0';
+					sd_cas_n <= '0';
 				when RAM_SETMODE =>
 					-- Set mode bits of RAM.
 					ramTimer <= 10;
 					ramState <= RAM_IDLE; -- ram is ready for commands after set-mode
-					sd_addr_reg <= std_logic_vector(resize("001000100010", sd_addr'length)); -- CAS2, Burstlength 4 (8 bytes, 64 bits), no burst on writes
+					sd_addr <= std_logic_vector(resize("001000100010", sd_addr'length)); -- CAS2, Burstlength 4 (8 bytes, 64 bits), no burst on writes
 					if casLatency = 3 then
-						sd_addr_reg(6 downto 4) <= "011";
+						sd_addr(6 downto 4) <= "011";
 					end if;
-					sd_we_n_reg <= '0';
-					sd_ras_n_reg <= '0';
-					sd_cas_n_reg <= '0';
+					sd_we_n <= '0';
+					sd_ras_n <= '0';
+					sd_cas_n <= '0';
 				when RAM_IDLE =>
 					initDoneReg <= '1'; --GE
 					refreshActive <= '0';
@@ -479,19 +450,19 @@ begin
 						if bankActive(to_integer(unsigned(nextRamBank))) = '0' then
 							-- Current bank not active. Activate a row first
 							ramTimer <= rasCasTiming - 1;
-							sd_addr_reg <= nextRamRow;
-							sd_ras_n_reg <= '0';
-							sd_ba_0_reg <= nextRamBank(0);
-							sd_ba_1_reg <= nextRamBank(1);
+							sd_addr <= nextRamRow;
+							sd_ras_n <= '0';
+							sd_ba_0 <= nextRamBank(0);
+							sd_ba_1 <= nextRamBank(1);
 							bankRow(to_integer(unsigned(nextRamBank))) <= nextRamRow;
 							bankActive(to_integer(unsigned(nextRamBank))) <= '1';
 						elsif bankRow(to_integer(unsigned(nextRamBank))) /= nextRamRow then
 							-- Wrong row active in bank, do precharge then activate a row.
 							ramTimer <= prechargeTiming - 1;
-							sd_we_n_reg <= '0';
-							sd_ras_n_reg <= '0';
-							sd_ba_0_reg <= nextRamBank(0);
-							sd_ba_1_reg <= nextRamBank(1);
+							sd_we_n <= '0';
+							sd_ras_n <= '0';
+							sd_ba_0 <= nextRamBank(0);
+							sd_ba_1 <= nextRamBank(1);
 							bankActive(to_integer(unsigned(nextRamBank))) <= '0';
 							ramState <= RAM_ACTIVATE;
 						end if;
@@ -510,26 +481,26 @@ begin
 				when RAM_ACTIVATE =>
 					ramTimer <= rasCasTiming - 1;
 					ramState <= currentState;
-					sd_addr_reg <= currentRow;
-					sd_ras_n_reg <= '0';
-					sd_ba_0_reg <= currentBank(0);
-					sd_ba_1_reg <= currentBank(1);
+					sd_addr <= currentRow;
+					sd_ras_n <= '0';
+					sd_ba_0 <= currentBank(0);
+					sd_ba_1 <= currentBank(1);
 					bankRow(to_integer(unsigned(currentBank))) <= currentRow;
 					bankActive(to_integer(unsigned(currentBank))) <= '1';
 
 				when RAM_READ_1 =>
 					if currentPort = PORT_VRAM0 or currentPort = PORT_VRAM1 then
-						ramTimer <= casLatency;
+						ramTimer <= casLatency - 1;
 						ramState <= RAM_READ_CACHE_FILL;
 					else
-						ramTimer <= casLatency + 1;
+						ramTimer <= casLatency;
 						ramState <= RAM_READ_2;
 					end if;
-					sd_addr_reg <= std_logic_vector(resize(unsigned(currentCol), sd_addr'length));
-					--GE sd_addr_reg <= resize(currentCol, sd_addr'length) or resize("10000000000", sd_addr'length); --GE Auto precharge
-					sd_cas_n_reg <= '0';
-					sd_ba_0_reg <= currentBank(0);
-					sd_ba_1_reg <= currentBank(1);
+					sd_addr <= std_logic_vector(resize(unsigned(currentCol), sd_addr'length));
+					--GE sd_addr <= resize(currentCol, sd_addr'length) or resize("10000000000", sd_addr'length); --GE Auto precharge
+					sd_cas_n <= '0';
+					sd_ba_0 <= currentBank(0);
+					sd_ba_1 <= currentBank(1);
 
 				when RAM_READ_CACHE_FILL =>
 					if currentPort = PORT_VRAM0 then
@@ -541,35 +512,34 @@ begin
 
 				when RAM_READ_2 =>
 					ramState <= RAM_READ_3;
-					currentRdData(15 downto 0) <= ram_data_reg;
+					currentRdData(15 downto 0) <= sd_data;
 
 				when RAM_READ_3 =>
 					ramState <= RAM_READ_4;
-					currentRdData(31 downto 16) <= ram_data_reg;
+					currentRdData(31 downto 16) <= sd_data;
 
 				when RAM_READ_4 =>
 					ramState <= RAM_READ_5;
-					currentRdData(47 downto 32) <= ram_data_reg;
+					currentRdData(47 downto 32) <= sd_data;
 
 				when RAM_READ_5 =>
-					currentRdData(63 downto 48) <= ram_data_reg;
+					currentRdData(63 downto 48) <= sd_data;
 					ramState <= RAM_IDLE;
 					ramDone <= '1';
 
 				when RAM_WRITE_1 =>
 					ramState <= RAM_IDLE;
-					sd_data_ena <= '1';
-					sd_we_n_reg <= '0';
-					sd_cas_n_reg <= '0';
-					sd_ba_0_reg <= currentBank(0);
-					sd_ba_1_reg <= currentBank(1);
+					sd_we_n <= '0';
+					sd_cas_n <= '0';
+					sd_ba_0 <= currentBank(0);
+					sd_ba_1 <= currentBank(1);
 
-					sd_addr_reg <= std_logic_vector(resize(unsigned(currentCol), sd_addr'length));
-					--GE sd_addr_reg <= resize(currentCol, sd_addr'length) or resize("10000000000", sd_addr'length); --GE Auto precharge
+					sd_addr <= std_logic_vector(resize(unsigned(currentCol), sd_addr'length));
+					--GE sd_addr <= resize(currentCol, sd_addr'length) or resize("10000000000", sd_addr'length); --GE Auto precharge
 
-					sd_data_reg <= currentWrData;
-					sd_ldqm_reg <= currentLdqm;
-					sd_udqm_reg <= currentUdqm;
+					sd_data <= currentWrData;
+					sd_ldqm <= currentLdqm;
+					sd_udqm <= currentUdqm;
 					ramDone <= '1';
 
 				when RAM_PRECHARGE_ALL =>
@@ -579,16 +549,16 @@ begin
 						ramTimer <= 1;
 						ramState <= RAM_AUTOREFRESH;
 					end if;
-					sd_addr_reg(10) <= '1'; -- All banks
-					sd_we_n_reg <= '0';
-					sd_ras_n_reg <= '0';				
+					sd_addr(10) <= '1'; -- All banks
+					sd_we_n <= '0';
+					sd_ras_n <= '0';
 					bankActive <= "0000";
 				when RAM_AUTOREFRESH =>
 					ramTimer <= refreshClocks;
 					ramState <= RAM_IDLE;
-					sd_we_n_reg <= '1';
-					sd_ras_n_reg <= '0';
-					sd_cas_n_reg <= '0';
+					sd_we_n <= '1';
+					sd_ras_n <= '0';
+					sd_cas_n <= '0';
 				end case;
 			end if;
 		end if;
