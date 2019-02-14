@@ -87,7 +87,9 @@ signal joy_2: std_logic_vector(31 downto 0);
 signal joy_3: std_logic_vector(31 downto 0);
 signal joy_4: std_logic_vector(31 downto 0);
 signal joyn_0: std_logic_vector(11 downto 0);
+signal joyn_a: std_logic_vector(11 downto 0);
 signal joyn_1: std_logic_vector(11 downto 0);
+signal joyn_b: std_logic_vector(11 downto 0);
 signal joyn_2: std_logic_vector(11 downto 0);
 signal joyn_3: std_logic_vector(11 downto 0);
 signal joyn_4: std_logic_vector(11 downto 0);
@@ -118,10 +120,10 @@ constant CONF_STR : string :=
     "TGFX16;BINPCE;"&
     "F,SGX,Load;"&
     "OBC,Scanlines,Off,25%,50%,75%;"&
-    --"O6,Joystick swap,Off,On;"&
-    "O2,ROM data swap,Off,On;"&
+    "O6,Joystick swap,Off,On;"&
     "O3,6 Buttons,Disable,Enable;"&
     "O4,Multitap,Off,On;"&
+    "O2,ROM data swap,Off,On;"&
     "T0,Reset;";
 
 function to_slv(s: string) return std_logic_vector is
@@ -467,8 +469,10 @@ begin
 end process;
 
 -- swap, invert and remap joystick bits
- joyn_0 <= not joy_1(11 downto 4) & not joy_1(1) & not joy_1(2) & not joy_1(0) & not joy_1(3);
- joyn_1 <= not joy_0(11 downto 4) & not joy_0(1) & not joy_0(2) & not joy_0(0) & not joy_0(3);
+ joyn_a <= not joy_0(11 downto 4) & not joy_0(1) & not joy_0(2) & not joy_0(0) & not joy_0(3);
+ joyn_b <= not joy_1(11 downto 4) & not joy_1(1) & not joy_1(2) & not joy_1(0) & not joy_1(3);
+ joyn_0 <= joyn_a when status(6) = '0' else joyn_b;
+ joyn_1 <= joyn_b when status(6) = '0' else joyn_a;
  joyn_2 <= not joy_2(11 downto 4) & not joy_2(1) & not joy_2(2) & not joy_2(0) & not joy_2(3);
  joyn_3 <= not joy_3(11 downto 4) & not joy_3(1) & not joy_3(2) & not joy_3(0) & not joy_3(3);
  joyn_4 <= not joy_4(11 downto 4) & not joy_4(1) & not joy_4(2) & not joy_4(0) & not joy_4(3);
