@@ -64,7 +64,7 @@ set_location_assignment PIN_121 -to VGA_B[2]
 set_location_assignment PIN_125 -to VGA_B[3]
 set_location_assignment PIN_119 -to VGA_HS
 set_location_assignment PIN_136 -to VGA_VS
-set_global_assignment -name TIMEQUEST_MULTICORNER_ANALYSIS OFF
+set_global_assignment -name TIMEQUEST_MULTICORNER_ANALYSIS ON
 set_global_assignment -name TIMEQUEST_DO_CCPP_REMOVAL ON
 set_global_assignment -name ADV_NETLIST_OPT_SYNTH_WYSIWYG_REMAP ON
 set_global_assignment -name AUTO_SHIFT_REGISTER_RECOGNITION ALWAYS
@@ -214,23 +214,6 @@ set_instance_assignment -name FAST_OUTPUT_REGISTER ON -to SDRAM_nCAS
 set_instance_assignment -name FAST_OUTPUT_REGISTER ON -to SDRAM_nCS
 set_instance_assignment -name FAST_OUTPUT_REGISTER ON -to SDRAM_nRAS
 set_instance_assignment -name FAST_OUTPUT_REGISTER ON -to SDRAM_nWE
-set_instance_assignment -name FAST_OUTPUT_ENABLE_REGISTER ON -to SDRAM_A[12]
-set_instance_assignment -name FAST_OUTPUT_ENABLE_REGISTER ON -to SDRAM_A[11]
-set_instance_assignment -name FAST_OUTPUT_ENABLE_REGISTER ON -to SDRAM_A[10]
-set_instance_assignment -name FAST_OUTPUT_ENABLE_REGISTER ON -to SDRAM_A[9]
-set_instance_assignment -name FAST_OUTPUT_ENABLE_REGISTER ON -to SDRAM_A[8]
-set_instance_assignment -name FAST_OUTPUT_ENABLE_REGISTER ON -to SDRAM_A[7]
-set_instance_assignment -name FAST_OUTPUT_ENABLE_REGISTER ON -to SDRAM_A[6]
-set_instance_assignment -name FAST_OUTPUT_ENABLE_REGISTER ON -to SDRAM_A[5]
-set_instance_assignment -name FAST_OUTPUT_ENABLE_REGISTER ON -to SDRAM_A[4]
-set_instance_assignment -name FAST_OUTPUT_ENABLE_REGISTER ON -to SDRAM_A[3]
-set_instance_assignment -name FAST_OUTPUT_ENABLE_REGISTER ON -to SDRAM_A[2]
-set_instance_assignment -name FAST_OUTPUT_ENABLE_REGISTER ON -to SDRAM_A[1]
-set_instance_assignment -name FAST_OUTPUT_ENABLE_REGISTER ON -to SDRAM_A[0]
-set_instance_assignment -name FAST_OUTPUT_ENABLE_REGISTER ON -to SDRAM_BA[1]
-set_instance_assignment -name FAST_OUTPUT_ENABLE_REGISTER ON -to SDRAM_BA[0]
-set_instance_assignment -name FAST_OUTPUT_ENABLE_REGISTER ON -to SDRAM_CKE
-set_instance_assignment -name FAST_OUTPUT_ENABLE_REGISTER ON -to SDRAM_CLK
 set_instance_assignment -name FAST_OUTPUT_ENABLE_REGISTER ON -to SDRAM_DQ[15]
 set_instance_assignment -name FAST_OUTPUT_ENABLE_REGISTER ON -to SDRAM_DQ[14]
 set_instance_assignment -name FAST_OUTPUT_ENABLE_REGISTER ON -to SDRAM_DQ[13]
@@ -247,12 +230,6 @@ set_instance_assignment -name FAST_OUTPUT_ENABLE_REGISTER ON -to SDRAM_DQ[3]
 set_instance_assignment -name FAST_OUTPUT_ENABLE_REGISTER ON -to SDRAM_DQ[2]
 set_instance_assignment -name FAST_OUTPUT_ENABLE_REGISTER ON -to SDRAM_DQ[1]
 set_instance_assignment -name FAST_OUTPUT_ENABLE_REGISTER ON -to SDRAM_DQ[0]
-set_instance_assignment -name FAST_OUTPUT_ENABLE_REGISTER ON -to SDRAM_DQMH
-set_instance_assignment -name FAST_OUTPUT_ENABLE_REGISTER ON -to SDRAM_DQML
-set_instance_assignment -name FAST_OUTPUT_ENABLE_REGISTER ON -to SDRAM_nCAS
-set_instance_assignment -name FAST_OUTPUT_ENABLE_REGISTER ON -to SDRAM_nCS
-set_instance_assignment -name FAST_OUTPUT_ENABLE_REGISTER ON -to SDRAM_nRAS
-set_instance_assignment -name FAST_OUTPUT_ENABLE_REGISTER ON -to SDRAM_nWE
 set_instance_assignment -name FAST_INPUT_REGISTER ON -to SDRAM_DQ[15]
 set_instance_assignment -name FAST_INPUT_REGISTER ON -to SDRAM_DQ[14]
 set_instance_assignment -name FAST_INPUT_REGISTER ON -to SDRAM_DQ[13]
@@ -304,4 +281,5 @@ set_global_assignment -name ENABLE_BOOT_SEL_PIN OFF
 set_global_assignment -name CYCLONEIII_CONFIGURATION_SCHEME "PASSIVE SERIAL"
 set_instance_assignment -name CURRENT_STRENGTH_NEW "MAXIMUM CURRENT" -to SDRAM_*
 set_instance_assignment -name CURRENT_STRENGTH_NEW "MAXIMUM CURRENT" -to VGA_*
+set_location_assignment PLL_1 -to "pll:U00*"
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
