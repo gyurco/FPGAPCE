@@ -17,9 +17,9 @@ entity Virtual_Toplevel is
 		rowAddrBits : integer := 12;
 --		t_ck_ns : real := 10.0  -- 100 MHz
 --		t_ck_ns : real := 6.7   -- 150 MHz
-		t_ck_ns : real := 11.7  --  85 MHz
+--		t_ck_ns : real := 11.7  --  85 MHz
 --		t_ck_ns : real := 23.5
---		t_ck_ns : real := 7.9   -- 126 MHz
+		t_ck_ns : real := 7.9   -- 126 MHz
 	);
 	port(
 		reset : in std_logic;
