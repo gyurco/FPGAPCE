@@ -250,12 +250,17 @@ set_global_assignment -name PROJECT_OUTPUT_DIRECTORY ../../syn/mist
 set_global_assignment -name OPTIMIZE_HOLD_TIMING "ALL PATHS"
 set_global_assignment -name OPTIMIZE_MULTI_CORNER_TIMING ON
 set_global_assignment -name FITTER_EFFORT "STANDARD FIT"
+set_global_assignment -name OPTIMIZE_POWER_DURING_FITTING "NORMAL COMPILATION"
+set_global_assignment -name ENABLE_CONFIGURATION_PINS OFF
+set_global_assignment -name ENABLE_NCE_PIN OFF
+set_global_assignment -name ENABLE_BOOT_SEL_PIN OFF
+set_global_assignment -name CYCLONEIII_CONFIGURATION_SCHEME "PASSIVE SERIAL"
+set_instance_assignment -name CURRENT_STRENGTH_NEW "MAXIMUM CURRENT" -to SDRAM_*
+set_instance_assignment -name CURRENT_STRENGTH_NEW "MAXIMUM CURRENT" -to VGA_*
+set_location_assignment PLL_1 -to "pll:U00*"
 set_global_assignment -name VHDL_FILE MIST_Toplevel.vhd
-set_global_assignment -name VERILOG_FILE user_io.v
+set_global_assignment -name QIP_FILE mist.qip
 set_global_assignment -name VERILOG_FILE data_io.v
-set_global_assignment -name VERILOG_FILE scandoubler.v
-set_global_assignment -name VERILOG_FILE osd.v
-set_global_assignment -name SYSTEMVERILOG_FILE rgb2ypbpr.sv
 set_global_assignment -name VERILOG_FILE hybrid_pwm_sd.v
 set_global_assignment -name VHDL_FILE ../../src//psg.vhd
 set_global_assignment -name VHDL_FILE ../../src/huc6202.vhd
@@ -274,12 +279,4 @@ set_global_assignment -name SDC_FILE ../../Board/mist/constraints.sdc
 set_global_assignment -name SIGNALTAP_FILE ../../syn/mist/sdram.stp
 set_global_assignment -name SIGNALTAP_FILE ../../syn/mist/cpu.stp
 set_global_assignment -name SIGNALTAP_FILE ../../syn/mist/sgx.stp
-set_global_assignment -name OPTIMIZE_POWER_DURING_FITTING "NORMAL COMPILATION"
-set_global_assignment -name ENABLE_CONFIGURATION_PINS OFF
-set_global_assignment -name ENABLE_NCE_PIN OFF
-set_global_assignment -name ENABLE_BOOT_SEL_PIN OFF
-set_global_assignment -name CYCLONEIII_CONFIGURATION_SCHEME "PASSIVE SERIAL"
-set_instance_assignment -name CURRENT_STRENGTH_NEW "MAXIMUM CURRENT" -to SDRAM_*
-set_instance_assignment -name CURRENT_STRENGTH_NEW "MAXIMUM CURRENT" -to VGA_*
-set_location_assignment PLL_1 -to "pll:U00*"
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top

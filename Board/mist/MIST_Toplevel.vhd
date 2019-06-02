@@ -1,6 +1,7 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.numeric_std.ALL;
+use work.mist.ALL;
  
 entity MIST_Toplevel is
 	port
@@ -59,24 +60,6 @@ signal pce_green : std_logic_vector(2 downto 0);
 signal pce_blue : std_logic_vector(2 downto 0);
 signal pce_vs : std_logic;
 signal pce_hs : std_logic;
---
-signal sd_r         : std_logic_vector(5 downto 0);
-signal sd_g         : std_logic_vector(5 downto 0);
-signal sd_b         : std_logic_vector(5 downto 0);
-signal sd_hs        : std_logic;
-signal sd_vs        : std_logic;
---
-signal osd_red_i    : std_logic_vector(5 downto 0);
-signal osd_green_i  : std_logic_vector(5 downto 0);
-signal osd_blue_i   : std_logic_vector(5 downto 0);
-signal osd_vs_i     : std_logic;
-signal osd_hs_i     : std_logic;
-signal osd_red_o : std_logic_vector(5 downto 0);
-signal osd_green_o : std_logic_vector(5 downto 0);
-signal osd_blue_o : std_logic_vector(5 downto 0);
-signal vga_y_o : std_logic_vector(5 downto 0);
-signal vga_pb_o : std_logic_vector(5 downto 0);
-signal vga_pr_o : std_logic_vector(5 downto 0);
 
 -- user_io
 signal buttons: std_logic_vector(1 downto 0);
@@ -153,29 +136,6 @@ COMPONENT hybrid_pwm_sd
 	);
 END COMPONENT;
 
-component user_io 
-	generic ( STRLEN : integer := 0 );
-   port (
-        clk_sys : in std_logic;
-        clk_sd  : in std_logic;
-        SPI_CLK, SPI_SS_IO, SPI_MOSI :in std_logic;
-        SPI_MISO : out std_logic;
-        conf_str : in std_logic_vector(8*STRLEN-1 downto 0);
-        joystick_0 : out std_logic_vector(31 downto 0);
-        joystick_1 : out std_logic_vector(31 downto 0);
-        joystick_2 : out std_logic_vector(31 downto 0);
-        joystick_3 : out std_logic_vector(31 downto 0);
-        joystick_4 : out std_logic_vector(31 downto 0);
-        joystick_analog_0 : out std_logic_vector(15 downto 0);
-        joystick_analog_1 : out std_logic_vector(15 downto 0);
-        status: out std_logic_vector(31 downto 0);
-        switches : out std_logic_vector(1 downto 0);
-        buttons : out std_logic_vector(1 downto 0);
-        scandoubler_disable : out std_logic;
-        ypbpr : out std_logic
-      );
-  end component user_io;
-
 component data_io
     port (  clk         : in std_logic;
             clkref      : in std_logic;
@@ -190,57 +150,6 @@ component data_io
             sdi         : in std_logic
         );
     end component data_io;
-
-component scandoubler
-    port (
-            clk_sys     : in std_logic;
-            scanlines   : in std_logic_vector(1 downto 0);
-
-            hs_in       : in std_logic;
-            vs_in       : in std_logic;
-            r_in        : in std_logic_vector(2 downto 0);
-            g_in        : in std_logic_vector(2 downto 0);
-            b_in        : in std_logic_vector(2 downto 0);
-
-            hs_out      : out std_logic;
-            vs_out      : out std_logic;
-            r_out       : out std_logic_vector(5 downto 0);
-            g_out       : out std_logic_vector(5 downto 0);
-            b_out       : out std_logic_vector(5 downto 0)
-        );
-end component scandoubler;
-
-component osd
-         generic ( OSD_COLOR : integer := 1 );  -- blue
-    port (  clk_sys     : in std_logic;
-
-            R_in        : in std_logic_vector(5 downto 0);
-            G_in        : in std_logic_vector(5 downto 0);
-            B_in        : in std_logic_vector(5 downto 0);
-            HSync       : in std_logic;
-            VSync       : in std_logic;
-
-            R_out       : out std_logic_vector(5 downto 0);
-            G_out       : out std_logic_vector(5 downto 0);
-            B_out       : out std_logic_vector(5 downto 0);
-
-            SPI_SCK     : in std_logic;
-            SPI_SS3     : in std_logic;
-            SPI_DI      : in std_logic
-        );
-    end component osd;
-
-COMPONENT rgb2ypbpr
-        PORT
-        (
-        red     :        IN std_logic_vector(5 DOWNTO 0);
-        green   :        IN std_logic_vector(5 DOWNTO 0);
-        blue    :        IN std_logic_vector(5 DOWNTO 0);
-        y       :        OUT std_logic_vector(5 DOWNTO 0);
-        pb      :        OUT std_logic_vector(5 DOWNTO 0);
-        pr      :        OUT std_logic_vector(5 DOWNTO 0)
-        );
-END COMPONENT;
 
 begin
 
@@ -265,7 +174,7 @@ ext_sw(5) <= data_io_index(1); -- SGX mode
 process(clk42m)
 begin
     if rising_edge(clk42m) then
-        reset_d <= not (status(0) or status(2) or buttons(1)) and pll_locked;
+        reset_d <= not (status(0) or buttons(1)) and pll_locked;
         reset <= reset_d;
     end if;
 end process;
@@ -320,67 +229,35 @@ virtualtoplevel : entity work.Virtual_Toplevel
         ext_sw => ext_sw
 );
 
-scandoubler_inst: scandoubler
+mist_video : work.mist.mist_video
+    generic map (
+        OSD_COLOR   => "001", -- blue
+        COLOR_DEPTH => 3,
+        SD_HCNT_WIDTH => 10
+    )
     port map (
         clk_sys     => clk42m,
         scanlines   => status(12 downto 11),
-
-        hs_in       => pce_hs,
-        vs_in       => pce_vs,
-        r_in        => pce_red,
-        g_in        => pce_green,
-        b_in        => pce_blue,
-
-        hs_out      => sd_hs,
-        vs_out      => sd_vs,
-        r_out       => sd_r,
-        g_out       => sd_g,
-        b_out       => sd_b
-    );
-
-osd_inst: osd
-    port map (
-        clk_sys     => clk42m,
+        scandoubler_disable => scandoubler_disable,
+        ypbpr       => ypbpr,
+        rotate      => "00",
 
         SPI_SCK     => SPI_SCK,
         SPI_SS3     => SPI_SS3,
         SPI_DI      => SPI_DI,
 
-        R_in        => osd_red_i,
-        G_in        => osd_green_i,
-        B_in        => osd_blue_i,
-        HSync       => osd_hs_i,
-        VSync       => osd_vs_i,
+        HSync       => pce_hs,
+        VSync       => pce_vs,
+        R           => pce_red,
+        G           => pce_green,
+        B           => pce_blue,
 
-        R_out       => osd_red_o,
-        G_out       => osd_green_o,
-        B_out       => osd_blue_o
+        VGA_HS      => VGA_HS,
+        VGA_VS      => VGA_VS,
+        VGA_R       => VGA_R,
+        VGA_G       => VGA_G,
+        VGA_B       => VGA_B
     );
-
---
-rgb2component: component rgb2ypbpr
-        port map
-        (
-           red => osd_red_o,
-           green => osd_green_o,
-           blue => osd_blue_o,
-           y => vga_y_o,
-           pb => vga_pb_o,
-           pr => vga_pr_o
-        );
-
-osd_red_i   <= pce_red & pce_red when scandoubler_disable = '1' else sd_r;
-osd_green_i <= pce_green & pce_green when scandoubler_disable = '1' else sd_g;
-osd_blue_i  <= pce_blue & pce_blue when scandoubler_disable = '1' else sd_b;
-osd_hs_i    <= pce_hs when scandoubler_disable = '1' else sd_hs;
-osd_vs_i    <= pce_vs when scandoubler_disable = '1' else sd_vs;
-
- -- If 15kHz Video - composite sync to VGA_HS and VGA_VS high for MiST RGB cable
-VGA_HS <= not (pce_hs xor pce_vs) when scandoubler_disable='1' else not (sd_hs xor sd_vs) when ypbpr='1' else sd_hs;
-VGA_VS <= '1' when scandoubler_disable='1' or ypbpr='1' else sd_vs;
-VGA_R <= vga_pr_o when ypbpr='1' else osd_red_o;
-VGA_G <= vga_y_o  when ypbpr='1' else osd_green_o;
-VGA_B <= vga_pb_o when ypbpr='1' else osd_blue_o;
 
 LED <= not downloading;
 
