@@ -100,21 +100,21 @@ always @(posedge clk_sys) begin
 		end else begin
 			case(scanlines)
 				1: begin // reduce 25% = 1/2 + 1/4
-					r_out <= {1'b0, r[3:0], 1'b0} + {2'b00, r[3:0] };
-					g_out <= {1'b0, g[3:0], 1'b0} + {2'b00, g[3:0] };
-					b_out <= {1'b0, b[3:0], 1'b0} + {2'b00, b[3:0] };
+					r_out <= {1'b0, r[5:1]} + {2'b00, r[5:2] };
+					g_out <= {1'b0, g[5:1]} + {2'b00, g[5:2] };
+					b_out <= {1'b0, b[5:1]} + {2'b00, b[5:2] };
 				end
 
 				2: begin // reduce 50% = 1/2
-					r_out <= {1'b0, r[3:0], 1'b0};
-					g_out <= {1'b0, g[3:0], 1'b0};
-					b_out <= {1'b0, b[3:0], 1'b0};
+					r_out <= {1'b0, r[5:1]};
+					g_out <= {1'b0, g[5:1]};
+					b_out <= {1'b0, b[5:1]};
 				end
 
 				3: begin // reduce 75% = 1/4
-					r_out <= {2'b00, r[3:0]};
-					g_out <= {2'b00, g[3:0]};
-					b_out <= {2'b00, b[3:0]};
+					r_out <= {2'b00, r[5:2]};
+					g_out <= {2'b00, g[5:2]};
+					b_out <= {2'b00, b[5:2]};
 				end
 			endcase
 		end
