@@ -1,5 +1,10 @@
+-- user_io
+-- Interface to the MiST IO Controller
+
+-- mist_video
 -- A video pipeline for MiST. Just insert between the core video output and the VGA pins
 -- Provides an optional scandoubler, a rotateable OSD and (optional) RGb->YPbPr conversion
+
 library IEEE;
 use IEEE.std_logic_1164.all;
 use IEEE.numeric_std.all;
@@ -45,6 +50,10 @@ component user_io
 
 	ps2_kbd_clk       : out std_logic;
 	ps2_kbd_data      : out std_logic;
+	key_pressed       : out std_logic;
+	key_extended      : out std_logic;
+	key_code          : out std_logic_vector(7 downto 0);
+	key_strobe        : out std_logic;
 
 	ps2_mouse_clk     : out std_logic;
 	ps2_mouse_data    : out std_logic;
