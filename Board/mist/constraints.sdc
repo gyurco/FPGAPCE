@@ -98,8 +98,9 @@ set_false_path -to [get_ports {LED}]
 # Set Multicycle Path
 #**************************************************************
 
-set_multicycle_path -from [get_clocks {U00|altpll_component|auto_generated|pll1|clk[1]}] -to [get_clocks {U00|altpll_component|auto_generated|pll1|clk[2]}] -setup 2
-set_multicycle_path -from [get_clocks {U00|altpll_component|auto_generated|pll1|clk[1]}] -to [get_clocks {U00|altpll_component|auto_generated|pll1|clk[2]}] -hold 1
+# system -> SDRAM controller
+set_multicycle_path -from [get_clocks {U00|altpll_component|auto_generated|pll1|clk[2]}] -to [get_clocks {U00|altpll_component|auto_generated|pll1|clk[1]}] -setup -end 2
+set_multicycle_path -from [get_clocks {U00|altpll_component|auto_generated|pll1|clk[2]}] -to [get_clocks {U00|altpll_component|auto_generated|pll1|clk[1]}] -hold -end 1
 
 set_multicycle_path -to {VGA_*[*]} -setup 3
 set_multicycle_path -to {VGA_*[*]} -hold 2

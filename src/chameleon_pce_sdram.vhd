@@ -335,8 +335,8 @@ begin
 					nextRamState <= RAM_WRITE_1;
 				end if;
 				nextRamPort <= PORT_VRAM0;
-				nextRamBank <= '1' & vram0_a(colAddrBits+1);
-				nextRamRow <= vram0_a((colAddrBits+1+rowAddrBits) downto (colAddrBits+2));
+				nextRamBank <= "10";
+				nextRamRow <= vram0_a((colAddrBits+rowAddrBits) downto (colAddrBits+1));
 				nextRamCol <= vram0_a(colAddrBits downto 1);
 			elsif (vram1_req /= vram1_ackReg) and (currentPort /= PORT_VRAM1) and (vram1_we = '1' or cache1_sdram_req = '1') then
 				nextRamState <= RAM_READ_1;
@@ -344,8 +344,8 @@ begin
 					nextRamState <= RAM_WRITE_1;
 				end if;
 				nextRamPort <= PORT_VRAM1;
-				nextRamBank <= '1' & vram1_a(colAddrBits+1);
-				nextRamRow <= vram1_a((colAddrBits+1+rowAddrBits) downto (colAddrBits+2));
+				nextRamBank <= "11";
+				nextRamRow <= vram1_a((colAddrBits+rowAddrBits) downto (colAddrBits+1));
 				nextRamCol <= vram1_a(colAddrBits downto 1);
 			elsif (romwr_req /= romwr_ackReg) and (currentPort /= PORT_ROMWR) then
 				nextRamState <= RAM_READ_1;
