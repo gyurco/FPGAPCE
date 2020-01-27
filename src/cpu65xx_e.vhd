@@ -44,6 +44,7 @@ entity cpu65xx is
 		do : out unsigned(7 downto 0);
 		--GE addr : out unsigned(15 downto 0);
 		addr : out unsigned(20 downto 0); --GE
+		vdcDirect : out std_logic;        --DS
 		we : out std_logic;
 		oe : out std_logic; --GE HuC6280
 		

@@ -2520,6 +2520,7 @@ calcAddr: process(clk)
 	--addr <= x"FF" & myAddr(12 downto 0) when vdcAddr = '1'
 		else MPR(to_integer(myAddr(15 downto 13))) & myAddr(12 downto 0); --GE
 
+	vdcDirect <= vdcAddr;  -- DS
 	debugA <= A;
 	debugX <= X;
 	debugY <= Y;
