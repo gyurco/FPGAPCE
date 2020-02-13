@@ -63,18 +63,16 @@ derive_clock_uncertainty;
 #**************************************************************
 
 # SDRAM is clocked from sd1clk_pin, but the SDRAM controller uses memclk
-set_input_delay -clock [get_clocks {U00|altpll_component|auto_generated|pll1|clk[1]}] -max 6.4 [get_ports SDRAM_DQ[*]]
-set_input_delay -clock [get_clocks {U00|altpll_component|auto_generated|pll1|clk[1]}] -min 3.2 [get_ports SDRAM_DQ[*]]
+set_input_delay -clock [get_clocks {U00|altpll_component|auto_generated|pll1|clk[0]}] -reference_pin [get_ports SDRAM_CLK] -max 6.4 [get_ports SDRAM_DQ[*]]
+set_input_delay -clock [get_clocks {U00|altpll_component|auto_generated|pll1|clk[0]}] -reference_pin [get_ports SDRAM_CLK] -min 3.2 [get_ports SDRAM_DQ[*]]
 
 
 #**************************************************************
 # Set Output Delay
 #**************************************************************
 
-set_output_delay -clock [get_clocks {U00|altpll_component|auto_generated|pll1|clk[1]}] -max 1.5 [get_ports {SDRAM_D* SDRAM_A* SDRAM_BA* SDRAM_n* SDRAM_CKE}]
-set_output_delay -clock [get_clocks {U00|altpll_component|auto_generated|pll1|clk[1]}] -min -0.8 [get_ports {SDRAM_D* SDRAM_A* SDRAM_BA* SDRAM_n* SDRAM_CKE}]
-set_output_delay -clock [get_clocks {U00|altpll_component|auto_generated|pll1|clk[0]}] -max 1.5 [get_ports SDRAM_CLK]
-set_output_delay -clock [get_clocks {U00|altpll_component|auto_generated|pll1|clk[0]}] -min -0.8 [get_ports SDRAM_CLK]
+set_output_delay -clock [get_clocks {U00|altpll_component|auto_generated|pll1|clk[0]}] -reference_pin [get_ports SDRAM_CLK] -max 1.5 [get_ports {SDRAM_D* SDRAM_A* SDRAM_BA* SDRAM_n* SDRAM_CKE}]
+set_output_delay -clock [get_clocks {U00|altpll_component|auto_generated|pll1|clk[0]}] -reference_pin [get_ports SDRAM_CLK] -min -0.8 [get_ports {SDRAM_D* SDRAM_A* SDRAM_BA* SDRAM_n* SDRAM_CKE}]
 
 set_output_delay -clock [get_clocks {U00|altpll_component|auto_generated|pll1|clk[2]}] -max 0 [get_ports {VGA_*}]
 set_output_delay -clock [get_clocks {U00|altpll_component|auto_generated|pll1|clk[2]}] -min -5 [get_ports {VGA_*}]
@@ -89,6 +87,7 @@ set_clock_groups -asynchronous -group [get_clocks {SPI_SCK}] -group [get_clocks 
 # Set False Path
 #**************************************************************
 
+set_false_path -to [get_ports {SDRAM_CLK}]
 set_false_path -to [get_ports {UART_TX}]
 set_false_path -to [get_ports {AUDIO_L}]
 set_false_path -to [get_ports {AUDIO_R}]
@@ -101,6 +100,8 @@ set_false_path -to [get_ports {LED}]
 # system -> SDRAM controller
 set_multicycle_path -from [get_clocks {U00|altpll_component|auto_generated|pll1|clk[2]}] -to [get_clocks {U00|altpll_component|auto_generated|pll1|clk[1]}] -setup -end 2
 set_multicycle_path -from [get_clocks {U00|altpll_component|auto_generated|pll1|clk[2]}] -to [get_clocks {U00|altpll_component|auto_generated|pll1|clk[1]}] -hold -end 1
+
+set_multicycle_path -from [get_clocks {U00|altpll_component|auto_generated|pll1|clk[0]}] -to [get_clocks {U00|altpll_component|auto_generated|pll1|clk[1]}] -setup -end 2
 
 set_multicycle_path -to {VGA_*[*]} -setup 3
 set_multicycle_path -to {VGA_*[*]} -hold 2
