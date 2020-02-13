@@ -81,6 +81,7 @@ signal joy_ana_1: std_logic_vector(15 downto 0);
 
 signal ypbpr : std_logic;
 signal scandoubler_disable : std_logic;
+signal no_csync : std_logic;
 
 -- data_io
 signal downloading      : std_logic;
@@ -103,6 +104,7 @@ constant CONF_STR : string :=
     "TGFX16;BINPCE;"&
     "F,SGX,Load;"&
     "OBC,Scanlines,Off,25%,50%,75%;"&
+    "O7,Blending,Off,On;"&
     "O6,Joystick swap,Off,On;"&
     "O3,6 Buttons,Disable,Enable;"&
     "O4,Multitap,Off,On;"&
@@ -233,14 +235,17 @@ mist_video : work.mist.mist_video
     generic map (
         OSD_COLOR   => "001", -- blue
         COLOR_DEPTH => 3,
-        SD_HCNT_WIDTH => 10
+        SD_HCNT_WIDTH => 11
     )
     port map (
         clk_sys     => clk42m,
         scanlines   => status(12 downto 11),
         scandoubler_disable => scandoubler_disable,
         ypbpr       => ypbpr,
+        no_csync    => no_csync,
         rotate      => "00",
+        ce_divider  => '1',
+        blend       => status(7),
 
         SPI_SCK     => SPI_SCK,
         SPI_SS3     => SPI_SS3,
@@ -273,6 +278,7 @@ user_io_d : user_io
         conf_str => to_slv(CONF_STR),
         status => status,
         ypbpr => ypbpr,
+        no_csync => no_csync,
         scandoubler_disable => scandoubler_disable,
 
         joystick_0 => joy_0,
